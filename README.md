@@ -23,6 +23,6 @@ Other folders:
 
 Three.js 0.160.0 is vendored in `site/vendor/`, so the site has no runtime CDN dependency besides Google Fonts.
 
-## Hosting on Cloudflare Pages
+## Hosting on Cloudflare
 
-Connect this GitHub repo in Cloudflare (Workers & Pages → Create → Pages → Connect to Git). Framework preset: None. Build command: leave empty. Build output directory: `site`. The newsletter form uses Netlify Forms, which does nothing on Cloudflare; connect it to an email service before relying on it there.
+`wrangler.jsonc` tells Cloudflare to serve `site/` as static files, and `site/_headers` sets the same headers as `netlify.toml`. In Cloudflare go to Workers & Pages → Create → Import a repository, pick this repo, leave the build command empty and keep the deploy command `npx wrangler deploy`. The newsletter form uses Netlify Forms, which does nothing on Cloudflare; connect it to an email service before relying on it there.
