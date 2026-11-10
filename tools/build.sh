@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds one site version from its templates: site/<version> from src/<version>.
-# Change clinic details below, then run:  bash tools/build.sh v6   (or v5)
+# Change clinic details below (or in src/<version>/config.sh), then run:  bash tools/build.sh v8
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,6 +19,10 @@ export ADDRESS_2="Austin, TX 78701"
 export PORTAL_URL="https://www.optimantra.com/optimus/om/patient/login"
 export SHOP_SKIN_URL="https://your-clinic-shop.example/skin-hair"
 export SHOP_SUPP_URL="https://your-clinic-shop.example/hormone-supplements"
+export MAP_URL="https://www.google.com/maps/search/?api=1&amp;query=${ADDRESS_1// /+}+${ADDRESS_2// /+}"
+export BOOKING_URL=""
+# A version can override any of the above in src/<version>/config.sh
+[ -f "$SRC/config.sh" ] && . "$SRC/config.sh"
 
 # ---- Shared icons ----
 export ARROW='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg>'
