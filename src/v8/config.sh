@@ -1,10 +1,11 @@
 # Clinic details for v8. tools/build.sh reads this file after its defaults, so these values win.
-export PHONE_DISPLAY="(206) 507-2504"
+# The phone number and address are wrapped in data-set spans so the doctor can change them
+# from the admin area (Clinic details) without a rebuild.
+export PHONE_DISPLAY='<span data-set="phone">(206) 507-2504</span>'
 export PHONE_TEL="+12065072504"
-export ADDRESS_1="2700 Richards Rd, Suite 204A"
-export ADDRESS_2="Bellevue, WA 98005"
+export ADDRESS_1='<span data-set="address1">2700 Richards Rd, Suite 204A</span>'
+export ADDRESS_2='<span data-set="address2">Bellevue, WA 98005</span>'
 export MAP_URL="https://www.google.com/maps/search/?api=1&amp;query=2700+Richards+Rd+Suite+204A+Bellevue+WA+98005"
 export PORTAL_URL="https://www.optimantra.com/optimus/om/patient/login"
-# Online booking: paste a Cal.com or Calendly scheduling link here, e.g. https://cal.com/eternawell/consult
-# Leave empty to show "call or text to book" instead.
-export BOOKING_URL=""
+# Mark text and photos so the admin editor can change them (tools/editable.py)
+export EDITABLE=1

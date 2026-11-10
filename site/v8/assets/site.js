@@ -1,4 +1,4 @@
-// Menu, scroll reveals, smooth scrolling, online booking embed, and the services photo preview
+// Menu, scroll reveals, smooth scrolling
 (function () {
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -47,37 +47,5 @@
       lenis.scrollTo(target, { offset: -96 });
       history.pushState(null, '', url.hash);
     });
-  }
-
-  // Book: load the scheduling calendar (Cal.com / Calendly link from config.sh) when one is set
-  var booking = document.querySelector('.booking[data-booking]');
-  if (booking && /^https:\/\//.test(booking.dataset.booking)) {
-    var frame = document.createElement('iframe');
-    frame.src = booking.dataset.booking;
-    frame.title = 'Book an appointment online';
-    frame.loading = 'lazy';
-    booking.appendChild(frame);
-    booking.classList.add('on');
-  }
-
-  // Services: a photo preview follows the cursor over each row
-  var preview = document.querySelector('.preview');
-  if (preview && matchMedia('(hover: hover) and (pointer: fine)').matches) {
-    var label = preview.querySelector('.ph-label');
-    var img = document.createElement('img');
-    img.alt = '';
-    document.querySelectorAll('[data-photo]').forEach(function (row) {
-      if (row.dataset.img) new Image().src = row.dataset.img; // preload so the preview never flashes empty
-      row.addEventListener('pointerenter', function () {
-        label.textContent = 'Photo · ' + row.dataset.photo;
-        if (row.dataset.img) { img.src = row.dataset.img; preview.prepend(img); } else img.remove();
-        preview.classList.add('on');
-      });
-      row.addEventListener('pointerleave', function () { preview.classList.remove('on'); });
-    });
-    window.addEventListener('pointermove', function (e) {
-      preview.style.setProperty('--x', e.clientX + 'px');
-      preview.style.setProperty('--y', e.clientY + 'px');
-    }, { passive: true });
   }
 })();

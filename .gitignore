@@ -3,3 +3,6 @@
 Screenshot*
 hello_world_extension/
 .claude/
+.dev.vars
+.wrangler/
+node_modules/

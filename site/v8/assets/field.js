@@ -37,7 +37,7 @@ function start() {
 
   // sRGB 0–1 values; the shader writes them straight to the canvas
   const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
-  const palette = ['#d8c6a2', '#6b5230', '#e6d6b8', '#8c6d3f', '#b39a6e'].map(hex);
+  const palette = ['#e2cf9f', '#8a6930', '#efe2c4', '#b08636', '#c9a66b'].map(hex);
 
   const v = new THREE.Vector3();
   const xAxis = new THREE.Vector3(1, 0, 0);

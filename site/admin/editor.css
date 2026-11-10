@@ -1,0 +1,19 @@
+/* Editing mode on a v8 page (loaded only for the signed-in admin) */
+html.ew-editing [data-edit] { outline: 1px dashed rgba(138, 105, 48, 0.55); outline-offset: 3px; cursor: text; border-radius: 2px; }
+html.ew-editing [data-edit]:hover { outline: 2px dashed #8a6930; }
+html.ew-editing [data-edit]:focus { outline: 2px solid #8a6930; background: rgba(255, 244, 214, 0.45); }
+html.ew-editing [data-edit].ew-shared { outline-color: rgba(47, 107, 58, 0.6); }
+html.ew-editing [data-edit].ew-shared:focus { outline-color: #2f6b3a; }
+html.ew-editing .ew-changed { box-shadow: 0 0 0 4px rgba(176, 134, 54, 0.25); }
+html.ew-editing a { cursor: text; }
+html.ew-editing .ew-img { cursor: default; }
+html.ew-editing .ew-img .ph-label { display: flex !important; z-index: 1; }
+.ew-img-btn {
+  position: absolute; z-index: 3; top: 14px; right: 14px; min-height: 40px; padding: 0 16px;
+  border: 0; border-radius: 4px; background: #8a6930; color: #fff; font: 500 14px/1 "Figtree", system-ui, sans-serif; cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+.ew-img-btn:hover { background: #6e5426; }
+.ew-img-btn:focus-visible { outline: 2px solid #171614; outline-offset: 2px; }
+.ew-bar { position: fixed; z-index: 100; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; gap: 16px; align-items: center; padding: 10px 12px 10px 18px; border-radius: 6px; background: #171614; color: #fff; font: 14px "Figtree", system-ui, sans-serif; }
+.ew-bar button { min-height: 36px; padding: 0 16px; border: 0; border-radius: 4px; background: #b08636; color: #171614; font-weight: 600; cursor: pointer; }

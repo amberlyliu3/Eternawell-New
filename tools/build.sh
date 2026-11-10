@@ -20,7 +20,7 @@ export PORTAL_URL="https://www.optimantra.com/optimus/om/patient/login"
 export SHOP_SKIN_URL="https://your-clinic-shop.example/skin-hair"
 export SHOP_SUPP_URL="https://your-clinic-shop.example/hormone-supplements"
 export MAP_URL="https://www.google.com/maps/search/?api=1&amp;query=${ADDRESS_1// /+}+${ADDRESS_2// /+}"
-export BOOKING_URL=""
+export EDITABLE=""
 # A version can override any of the above in src/<version>/config.sh
 [ -f "$SRC/config.sh" ] && . "$SRC/config.sh"
 
@@ -63,3 +63,6 @@ for page in "$SRC"/pages/*.html; do
     > "$dest"
   echo "built $dest"
 done
+
+[ "$EDITABLE" = 1 ] && python3 tools/editable.py "$OUT"
+exit 0

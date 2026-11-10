@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin · EternaWell Medicine</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..500&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- Sign in -->
+<main id="login" class="login" hidden>
+  <form class="login-card" id="login-form">
+    <p class="brand">EternaWell<span>Medicine</span></p>
+    <h1>Admin sign in</h1>
+    <label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
+    <p class="error" role="alert"></p>
+    <button class="btn" type="submit">Sign in</button>
+    <p class="muted"><a href="/v8/">Back to the website</a></p>
+  </form>
+</main>
+
+<!-- Not configured -->
+<main id="setup" class="login" hidden>
+  <div class="login-card">
+    <p class="brand">EternaWell<span>Medicine</span></p>
+    <h1>Admin isn't set up yet</h1>
+    <p>Add a secret called <code>ADMIN_PASSWORD</code> to this Worker in the Cloudflare dashboard (Workers &amp; Pages → eternawell-new → Settings → Variables and Secrets), then reload this page.</p>
+  </div>
+</main>
+
+<!-- App -->
+<div id="app" hidden>
+  <header class="top">
+    <p class="brand">EternaWell<span>Admin</span></p>
+    <nav class="tabs" aria-label="Admin sections">
+      <button type="button" data-tab="bookings" aria-current="page">Bookings</button>
+      <button type="button" data-tab="website">Edit website</button>
+      <button type="button" data-tab="availability">Availability</button>
+      <button type="button" data-tab="clinic">Clinic details</button>
+    </nav>
+    <div class="top-end">
+      <a href="/v8/" target="_blank" rel="noopener">View site<span class="visually-hidden"> (opens in a new tab)</span></a>
+      <button type="button" class="link" id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Bookings -->
+    <section class="panel" data-panel="bookings">
+      <div class="panel-head">
+        <h1>Bookings</h1>
+        <div class="row">
+          <div class="seg" role="group" aria-label="Show">
+            <button type="button" data-view="upcoming" aria-pressed="true">Upcoming</button>
+            <button type="button" data-view="past" aria-pressed="false">Past</button>
+            <button type="button" data-view="cancelled" aria-pressed="false">Cancelled</button>
+            <button type="button" data-view="all" aria-pressed="false">All</button>
+          </div>
+          <button type="button" class="btn ghost" id="export">Download CSV</button>
+          <button type="button" class="btn" id="add-booking">Add booking</button>
+        </div>
+      </div>
+      <form class="card add-form" id="add-form" hidden>
+        <h2>Add a booking</h2>
+        <p class="muted">For visits booked by phone or text. Any time is allowed here, even outside your open hours.</p>
+        <div class="grid">
+          <label class="field"><span>Date</span><input type="date" name="date" required></label>
+          <label class="field"><span>Time</span><input type="time" name="time" step="300" required></label>
+          <label class="field"><span>Visit type</span><select name="type"></select></label>
+          <label class="field"><span>Visit</span><select name="mode"><option value="in-person">In person</option><option value="telemedicine">Telemedicine</option></select></label>
+          <label class="field"><span>Patient name</span><input name="name" required></label>
+          <label class="field"><span>Phone</span><input name="phone" type="tel" required></label>
+          <label class="field"><span>Email (optional)</span><input name="email" type="email"></label>
+          <label class="field wide"><span>Note (optional, no medical details)</span><input name="note"></label>
+        </div>
+        <p class="error" role="alert"></p>
+        <div class="row"><button class="btn" type="submit">Save booking</button><button class="btn ghost" type="button" id="add-cancel">Cancel</button></div>
+      </form>
+      <p class="status" id="bookings-status" aria-live="polite"></p>
+      <div id="bookings"></div>
+    </section>
+
+    <!-- Website editor -->
+    <section class="panel" data-panel="website" hidden>
+      <div class="panel-head">
+        <h1>Edit website</h1>
+        <div class="row">
+          <label class="field inline"><span>Page</span>
+            <select id="page">
+              <option value="">Home</option>
+              <option value="services/">Services</option>
+              <option value="about/">Meet the Doctor</option>
+              <option value="membership/">Membership</option>
+              <option value="products/">Products</option>
+              <option value="faq/">FAQ</option>
+              <option value="book/">Book</option>
+              <option value="legal/">Privacy &amp; policies</option>
+            </select>
+          </label>
+          <button type="button" class="btn ghost" id="discard" disabled>Discard changes</button>
+          <button type="button" class="btn" id="save" disabled>Save changes</button>
+        </div>
+      </div>
+      <p class="hint">Click any text on the page to change it, then press <b>Save changes</b>. Click a photo to replace it. Highlighted <span class="todo-sample">[brackets]</span> are blanks still to fill in. Text in the footer and the "Book" box at the bottom is shared by every page.</p>
+      <p class="status" id="edit-status" aria-live="polite"></p>
+      <div class="frame-wrap"><iframe id="editor" title="Website page in editing mode"></iframe></div>
+      <details class="card edited">
+        <summary>Edited items <span id="edited-count"></span></summary>
+        <p class="muted">Everything you've changed from the original website. Restore an item to bring back the original text or photo.</p>
+        <ul id="edited-list"></ul>
+      </details>
+    </section>
+
+    <!-- Availability -->
+    <section class="panel" data-panel="availability" hidden>
+      <div class="panel-head">
+        <h1>Availability</h1>
+        <div class="row"><button type="button" class="btn" id="save-availability">Save availability</button></div>
+      </div>
+      <p class="status" id="avail-status" aria-live="polite"></p>
+      <div class="cols">
+        <div class="card">
+          <h2>Blocked days</h2>
+          <p class="muted">Click a day to block it, for example your EZCall work days, holidays or time off. Patients can't book blocked days. Click again to unblock.</p>
+          <div id="block-cal"></div>
+          <div class="row range">
+            <label class="field"><span>Block from</span><input type="date" id="range-from"></label>
+            <label class="field"><span>to</span><input type="date" id="range-to"></label>
+            <button type="button" class="btn ghost" id="range-add">Block range</button>
+          </div>
+          <div class="row range">
+            <label class="field"><span>Block every</span>
+              <select id="repeat-day"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select>
+            </label>
+            <label class="field"><span>for the next</span><select id="repeat-weeks"><option value="4">4 weeks</option><option value="8" selected>8 weeks</option><option value="13">3 months</option><option value="26">6 months</option></select></label>
+            <button type="button" class="btn ghost" id="repeat-add">Block these days</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Weekly hours</h2>
+          <p class="muted">Pacific Time. Untick a day to close it every week.</p>
+          <div id="hours"></div>
+        </div>
+        <div class="card">
+          <h2>Visit types</h2>
+          <p class="muted">What patients can book online, and how long each takes.</p>
+          <div id="types"></div>
+          <button type="button" class="btn ghost" id="add-type">Add visit type</button>
+        </div>
+        <div class="card">
+          <h2>Booking rules</h2>
+          <div class="grid">
+            <label class="field"><span>Start times every (minutes)</span><input type="number" id="slotStep" min="5" max="240"></label>
+            <label class="field"><span>Gap between visits (minutes)</span><input type="number" id="bufferMinutes" min="0" max="120"></label>
+            <label class="field"><span>Minimum notice (hours)</span><input type="number" id="minNoticeHours" min="0" max="336"></label>
+            <label class="field"><span>Book up to (days ahead)</span><input type="number" id="maxDaysAhead" min="1" max="365"></label>
+            <label class="field wide"><span>Delete past and cancelled bookings after (days)</span><input type="number" id="retentionDays" min="30" max="3650"></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Clinic details -->
+    <section class="panel" data-panel="clinic" hidden>
+      <div class="panel-head"><h1>Clinic details</h1></div>
+      <form class="card narrow" id="clinic-form">
+        <p class="muted">Shown in the footer, on the Book page and anywhere the website lists your phone number or address.</p>
+        <label class="field"><span>Phone</span><input name="phone" required></label>
+        <label class="field"><span>Address line 1</span><input name="address1" required></label>
+        <label class="field"><span>City, state and ZIP</span><input name="address2" required></label>
+        <p class="status" aria-live="polite"></p>
+        <button class="btn" type="submit">Save clinic details</button>
+      </form>
+    </section>
+  </main>
+</div>
+
+<script src="/admin/admin.js" defer></script>
+</body>
+</html>

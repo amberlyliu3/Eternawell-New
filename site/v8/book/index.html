@@ -37,26 +37,22 @@
   <section class="page-hero">
     <div class="wrap">
       <div class="content">
-        <span class="eyebrow">Book now</span>
-        <h1>Book your visit <em>online.</em></h1>
-        <p class="lede">No account or sign-up needed. Choose a visit type and time, enter your name, phone and email, and you'll get a confirmation by email with a link to reschedule or cancel.</p>
-        <p class="quiet-line">FSA / HSA eligible · Free 20-minute first consult · In person &amp; telemedicine</p>
+        <span class="eyebrow" data-edit="book:a4fba6976a">Book now</span>
+        <h1 data-edit="book:5aea348914">Book your visit <em>online.</em></h1>
+        <p class="lede" data-edit="book:ce980dc445">No account or sign-up needed. Choose a visit type and time, then enter your name, phone and email. You'll see your confirmation right away, with a link to cancel if your plans change.</p>
+        <p class="quiet-line" data-edit="book:d407d9a7f8">FSA / HSA eligible · Free 20-minute first consult · In person &amp; telemedicine</p>
       </div>
-      <figure class="ph warm r-4x5"><img src="https://images.unsplash.com/photo-1764727291644-5dcb0b1a0375?auto=format&fit=crop&w=1000&q=70" alt="Clinic reception desk" loading="lazy" data-stock><figcaption class="ph-label">Photography · Front desk</figcaption></figure>
+      <figure class="ph warm r-4x5"><img src="https://images.unsplash.com/photo-1764727291644-5dcb0b1a0375?auto=format&fit=crop&w=1000&q=70" alt="Clinic reception desk" loading="lazy" data-stock data-edit-img="book:img-65c2e6e5ea"><figcaption class="ph-label">Photography · Front desk</figcaption></figure>
     </div>
   </section>
 
   <section class="section tight" id="online">
     <div class="wrap">
       <h2 class="visually-hidden">Online booking</h2>
-      <div class="booking" data-booking="">
-        <div class="booking-empty">
-          <span class="eyebrow">Online booking</span>
-          <p class="lede">Online booking is coming soon. For now, please call or text <a href="tel:+12065072504">(206) 507-2504</a> and we'll find a time that works for you.</p>
-          <p class="todo-line"><span class="todo">[Booking calendar goes here. Set BOOKING_URL in src/v8/config.sh to a Cal.com or Calendly link whose availability skips the doctor's EZCall work days.]</span></p>
-        </div>
+      <div class="booking" id="booking" data-tel="+12065072504">
+        <noscript><p class="booking-empty lede">Online booking needs JavaScript. Please call or text <a href="tel:+12065072504"><span data-set="phone">(206) 507-2504</span></a>.</p></noscript>
       </div>
-      <p class="booking-note">Please don't include medical details when booking. We'll send a secure health questionnaire before your first visit.</p>
+      <p class="booking-note" data-edit="book:83effeb0ac">Please don't include medical details when booking. We'll send a secure health questionnaire before your first visit.</p>
     </div>
   </section>
 
@@ -64,14 +60,14 @@
     <div class="wrap">
       <div class="options two" data-reveal>
         <div>
-          <span class="eyebrow">Prefer to call?</span>
-          <a href="tel:+12065072504" class="big">(206) 507-2504</a>
-          <p>Our front desk can book your visit and answer questions.</p>
+          <span class="eyebrow" data-edit="book:42b6aaae79">Prefer to call?</span>
+          <a href="tel:+12065072504" class="big"><span data-set="phone" data-edit="book:e8c4e86f03">(206) 507-2504</span></a>
+          <p data-edit="book:9711276469">Our front desk can book your visit and answer questions.</p>
         </div>
         <div>
-          <span class="eyebrow">Text to book</span>
-          <a href="sms:+12065072504" class="big">(206) 507-2504</a>
-          <p>Send us a text with your name and a good time to reach you. Please don't include medical details.</p>
+          <span class="eyebrow" data-edit="book:4e60f05f9f">Text to book</span>
+          <a href="sms:+12065072504" class="big"><span data-set="phone" data-edit="book:e8c4e86f03-1">(206) 507-2504</span></a>
+          <p data-edit="book:02447f664b">Send us a text with your name and a good time to reach you. Please don't include medical details.</p>
         </div>
       </div>
     </div>
@@ -80,13 +76,13 @@
   <section class="band-dark section">
     <div class="wrap">
       <div class="section-head">
-        <span class="eyebrow">What happens next</span>
-        <h2>Your first <em>steps.</em></h2>
+        <span class="eyebrow" data-edit="book:51ecc5b21f">What happens next</span>
+        <h2 data-edit="book:12730b1b04">Your first <em>steps.</em></h2>
       </div>
       <ol class="big-steps">
-        <li data-reveal><span class="n">01</span><b>Book online</b><span class="d">Pick a time above. No account, no sign-up fee, no commitment.</span></li>
-        <li data-reveal><span class="n">02</span><b>Free 20-minute consultation</b><span class="d">Meet with the doctor, in person or by telemedicine, to discuss your symptoms and goals at no charge.</span></li>
-        <li data-reveal><span class="n">03</span><b>Lab draw &amp; full initial consultation</b><span class="d">We draw comprehensive labs and complete a full consultation to build your personalized treatment plan.</span></li>
+        <li data-reveal data-edit="book:accc50e1a9"><span class="n">01</span><b>Book online</b><span class="d">Pick a time above. No account, no sign-up fee, no commitment.</span></li>
+        <li data-reveal data-edit="book:1123b13e83"><span class="n">02</span><b>Free 20-minute consultation</b><span class="d">Meet with the doctor, in person or by telemedicine, to discuss your symptoms and goals at no charge.</span></li>
+        <li data-reveal data-edit="book:7b7b55c6eb"><span class="n">03</span><b>Lab draw &amp; full initial consultation</b><span class="d">We draw comprehensive labs and complete a full consultation to build your personalized treatment plan.</span></li>
       </ol>
     </div>
   </section>
@@ -94,22 +90,23 @@
   <section class="section">
     <div class="wrap">
       <div class="cta solo" data-reveal>
-        <span class="eyebrow">Already a patient?</span>
-        <h2>Visit the patient <em>portal.</em></h2>
-        <p>Existing patients can sign in to see messages, results and forms. You don't need the portal to book a new visit.</p>
+        <span class="eyebrow" data-edit="book:d93e3de1f4">Already a patient?</span>
+        <h2 data-edit="book:dccf5d423f">Visit the patient <em>portal.</em></h2>
+        <p data-edit="book:9a1c8ecc21">Existing patients can sign in to see messages, results and forms. You don't need the portal to book a new visit.</p>
         <div class="actions">
           <a href="https://www.optimantra.com/optimus/om/patient/login" target="_blank" rel="noopener noreferrer" class="btn btn-primary">Open patient portal <svg class="ext-ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 3h7v7M13 3L4 12"/></svg><span class="visually-hidden"> (opens in a new tab)</span></a>
         </div>
-        <p class="cta-note">2700 Richards Rd, Suite 204A, Bellevue, WA 98005</p>
+        <p class="cta-note" data-edit="book:f720ba93ee"><span data-set="address1">2700 Richards Rd, Suite 204A</span>, <span data-set="address2">Bellevue, WA 98005</span></p>
       </div>
     </div>
   </section>
 </main>
+<script src="/v8/assets/booking.js" defer></script>
 <footer>
   <div class="wrap foot">
     <div>
       <p class="foot-logo">EternaWell<span class="logo-sub">Medicine</span></p>
-      <p>Hormone, weight, screening and prescription skin care, in person in Bellevue, WA and by telemedicine.</p>
+      <p data-edit="shared:2cfe5dd600">Hormone, weight, screening and prescription skin care, in person in Bellevue, WA and by telemedicine.</p>
       <form class="signup" name="newsletter" method="POST" action="/v8/thanks/" data-netlify="true" netlify-honeypot="bot-field">
         <input type="hidden" name="form-name" value="newsletter">
         <p class="hp"><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
@@ -122,7 +119,7 @@
       </form>
     </div>
     <div>
-      <h4>Navigation</h4>
+      <h4 data-edit="shared:cf03cf2e9c">Navigation</h4>
       <ul class="links">
         <li><a href="/v8/services/">Services</a></li>
         <li><a href="/v8/about/">Meet the Doctor</a></li>
@@ -134,10 +131,10 @@
       </ul>
     </div>
     <div>
-      <h4>Visit</h4>
+      <h4 data-edit="shared:7c9a8664b1">Visit</h4>
       <ul class="links">
-        <li><a href="https://www.google.com/maps/search/?api=1&amp;query=2700+Richards+Rd+Suite+204A+Bellevue+WA+98005" target="_blank" rel="noopener noreferrer">2700 Richards Rd, Suite 204A<br>Bellevue, WA 98005<span class="visually-hidden"> (map, opens in a new tab)</span></a></li>
-        <li><a href="tel:+12065072504">(206) 507-2504</a></li>
+        <li><a href="https://www.google.com/maps/search/?api=1&amp;query=2700+Richards+Rd+Suite+204A+Bellevue+WA+98005" target="_blank" rel="noopener noreferrer"><span data-set="address1">2700 Richards Rd, Suite 204A</span><br><span data-set="address2">Bellevue, WA 98005</span><span class="visually-hidden"> (map, opens in a new tab)</span></a></li>
+        <li><a href="tel:+12065072504"><span data-set="phone">(206) 507-2504</span></a></li>
         <li><a href="sms:+12065072504">Text to book</a></li>
         <li>FSA / HSA eligible · In person &amp; telemedicine</li>
       </ul>

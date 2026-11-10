@@ -9,7 +9,7 @@
       <div class="content">
         <span class="eyebrow">Book now</span>
         <h1>Book your visit <em>online.</em></h1>
-        <p class="lede">No account or sign-up needed. Choose a visit type and time, enter your name, phone and email, and you'll get a confirmation by email with a link to reschedule or cancel.</p>
+        <p class="lede">No account or sign-up needed. Choose a visit type and time, then enter your name, phone and email. You'll see your confirmation right away, with a link to cancel if your plans change.</p>
         <p class="quiet-line">FSA / HSA eligible · Free 20-minute first consult · In person &amp; telemedicine</p>
       </div>
       <figure class="ph warm r-4x5"><img src="https://images.unsplash.com/photo-1764727291644-5dcb0b1a0375?auto=format&fit=crop&w=1000&q=70" alt="Clinic reception desk" loading="lazy" data-stock><figcaption class="ph-label">Photography · Front desk</figcaption></figure>
@@ -19,12 +19,8 @@
   <section class="section tight" id="online">
     <div class="wrap">
       <h2 class="visually-hidden">Online booking</h2>
-      <div class="booking" data-booking="{{BOOKING_URL}}">
-        <div class="booking-empty">
-          <span class="eyebrow">Online booking</span>
-          <p class="lede">Online booking is coming soon. For now, please call or text <a href="tel:{{PHONE_TEL}}">{{PHONE_DISPLAY}}</a> and we'll find a time that works for you.</p>
-          <p class="todo-line"><span class="todo">[Booking calendar goes here. Set BOOKING_URL in src/v8/config.sh to a Cal.com or Calendly link whose availability skips the doctor's EZCall work days.]</span></p>
-        </div>
+      <div class="booking" id="booking" data-tel="{{PHONE_TEL}}">
+        <noscript><p class="booking-empty lede">Online booking needs JavaScript. Please call or text <a href="tel:{{PHONE_TEL}}">{{PHONE_DISPLAY}}</a>.</p></noscript>
       </div>
       <p class="booking-note">Please don't include medical details when booking. We'll send a secure health questionnaire before your first visit.</p>
     </div>
@@ -75,3 +71,4 @@
     </div>
   </section>
 </main>
+<script src="{{BASE}}/assets/booking.js" defer></script>
