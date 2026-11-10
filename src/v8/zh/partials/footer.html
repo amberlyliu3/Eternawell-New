@@ -1,0 +1,57 @@
+<footer>
+  <div class="wrap foot">
+    <div>
+      <p class="foot-logo">EternaWell<span class="logo-sub">Medicine</span></p>
+      <p>激素、体重管理、早期筛查与处方皮肤护理，可在华盛顿州贝尔维尤到诊，也可远程视频就诊。</p>
+      <form class="msg" id="message-form" novalidate data-sending="正在发送…" data-sent="谢谢您！留言已发送，我们会尽快回复您。" data-failed="留言未能发送，请改为致电或发短信联系我们。">
+        <h4>给医生留言</h4>
+        <p class="msg-intro">预约前有疑问？请留言，我们会尽快回复您。请不要填写详细的病情信息。如遇紧急情况，请拨打 911。</p>
+        <label class="msg-field"><span>姓名</span><input name="name" autocomplete="name" required maxlength="100"></label>
+        <label class="msg-field"><span>电子邮箱或电话（方便我们回复您）</span><input name="contact" autocomplete="email" required maxlength="120"></label>
+        <label class="msg-field"><span>留言内容</span><textarea name="message" rows="4" required maxlength="2000"></textarea></label>
+        <label class="msg-hp" aria-hidden="true">公司 <input name="website" tabindex="-1" autocomplete="off"></label>
+        <label class="msg-consent"><input type="checkbox" name="consent" required><span>我同意 EternaWell Medicine 使用以上信息回复我，详见<a href="{{BASE}}/legal/#health-data">消费者健康数据隐私政策</a>。</span></label>
+        <p class="msg-status" role="status"></p>
+        <button type="submit" class="btn btn-primary">发送留言</button>
+      </form>
+    </div>
+    <div>
+      <h4>网站导航</h4>
+      <ul class="links">
+        <li><a href="{{BASE}}/services/">服务项目</a></li>
+        <li><a href="{{BASE}}/about/">认识医生</a></li>
+        <li><a href="{{BASE}}/membership/">会员</a></li>
+        <li><a href="{{BASE}}/products/">产品</a></li>
+        <li><a href="{{BASE}}/faq/">常见问题</a></li>
+        <li><a href="{{BASE}}/book/">立即预约</a></li>
+        <li><a href="{{PORTAL_URL}}" target="_blank" rel="noopener noreferrer">患者门户 {{EXT}}<span class="visually-hidden">（在新标签页打开）</span></a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>诊所地址</h4>
+      <ul class="links">
+        <li><a href="{{MAP_URL}}" target="_blank" rel="noopener noreferrer">{{ADDRESS_1}}<br>{{ADDRESS_2}}<span class="visually-hidden">（地图，在新标签页打开）</span></a></li>
+        <li><a href="tel:{{PHONE_TEL}}">{{PHONE_DISPLAY}}</a></li>
+        <li><a href="sms:{{PHONE_TEL}}">短信预约</a></li>
+        <li>可使用 FSA / HSA · 到诊及远程视频就诊</li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap legal-row">
+    <span>© 2026 EternaWell Medicine。保留所有权利。</span>
+    <nav aria-label="法律信息">
+      <a href="{{BASE}}/legal/#privacy">隐私政策</a>
+      <a href="{{BASE}}/legal/#health-data">消费者健康数据隐私政策</a>
+      <a href="{{BASE}}/legal/#terms">使用条款</a>
+      <a href="{{BASE}}/legal/#hipaa">隐私惯例通知</a>
+      <a href="{{BASE}}/legal/#accessibility">无障碍声明</a>
+    </nav>
+  </div>
+  <div class="wrap"><p class="wordmark" aria-hidden="true">EternaWell</p></div>
+</footer>
+
+<script src="/vendor/lenis.min.js" defer></script>
+<script src="{{ROOT}}/assets/site.js" defer></script>
+{{FIELD_SCRIPTS}}
+</body>
+</html>

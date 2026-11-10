@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#ffffff">
 <title>Book | EternaWell Medicine</title>
 <meta name="description" content="Book your free 20-minute consultation online, no account needed, or call or text (206) 507-2504. In person in Bellevue, WA or by telemedicine.">
+<link rel="alternate" hreflang="en" href="/v8/book/">
+<link rel="alternate" hreflang="zh-Hans" href="/v8/zh/book/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <script>document.documentElement.classList.add('js');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,6 +29,7 @@
       <a href="/v8/membership/" data-page="membership">Membership</a>
       <a href="/v8/products/" data-page="products">Products</a>
       <a href="/v8/faq/" data-page="faq">FAQ</a>
+      <a href="/v8/zh/book/" class="lang-switch" lang="zh-Hans" hreflang="zh-Hans" aria-label="切换到中文">中文</a>
       <a href="https://www.optimantra.com/optimus/om/patient/login" target="_blank" rel="noopener noreferrer">Patient Portal <svg class="ext-ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 3h7v7M13 3L4 12"/></svg><span class="visually-hidden"> (opens in a new tab)</span></a>
     </nav>
     <a href="/v8/book/" class="btn btn-primary nav-cta" data-page="book" aria-current="page">Book Now</a>
@@ -107,15 +110,16 @@
     <div>
       <p class="foot-logo">EternaWell<span class="logo-sub">Medicine</span></p>
       <p data-edit="shared:2cfe5dd600">Hormone, weight, screening and prescription skin care, in person in Bellevue, WA and by telemedicine.</p>
-      <form class="signup" name="newsletter" method="POST" action="/v8/thanks/" data-netlify="true" netlify-honeypot="bot-field">
-        <input type="hidden" name="form-name" value="newsletter">
-        <p class="hp"><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
-        <label for="signup-email">Occasional notes on hormone health and clinic news</label>
-        <div class="row">
-          <input type="email" id="signup-email" name="email" placeholder="Email address" autocomplete="email" required>
-          <button type="submit">Subscribe</button>
-        </div>
-        <p class="signup-note">We use your email only to send these notes. Unsubscribe any time. See our <a href="/v8/legal/#privacy">Privacy Policy</a>.</p>
+      <form class="msg" id="message-form" novalidate data-sending="Sending…" data-sent="Thank you. Your message has been sent, and we'll get back to you soon." data-failed="Your message couldn't be sent. Please call or text us instead.">
+        <h4>Send the doctor a message</h4>
+        <p class="msg-intro">Have a question before booking? Leave a message and we'll get back to you. Please don't include detailed medical information. For emergencies, call 911.</p>
+        <label class="msg-field"><span>Name</span><input name="name" autocomplete="name" required maxlength="100"></label>
+        <label class="msg-field"><span>Email or phone, so we can reply</span><input name="contact" autocomplete="email" required maxlength="120"></label>
+        <label class="msg-field"><span>Message</span><textarea name="message" rows="4" required maxlength="2000"></textarea></label>
+        <label class="msg-hp" aria-hidden="true">Company <input name="website" tabindex="-1" autocomplete="off"></label>
+        <label class="msg-consent"><input type="checkbox" name="consent" required><span>I agree that EternaWell Medicine may use this information to reply to me, as described in the <a href="/v8/legal/#health-data">Consumer Health Data Privacy Policy</a>.</span></label>
+        <p class="msg-status" role="status"></p>
+        <button type="submit" class="btn btn-primary">Send message</button>
       </form>
     </div>
     <div>

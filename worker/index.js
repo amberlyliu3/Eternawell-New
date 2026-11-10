@@ -1,6 +1,7 @@
 // EternaWell Medicine on Cloudflare: serves the static site in site/, plus
 //  - online booking (public API) with availability rules the doctor controls,
 //  - an admin area (/admin/) where the doctor edits site text and photos and manages bookings.
+//  - a "Send the doctor a message" form whose messages appear in the admin.
 // Everything is stored in one SQLite-backed Durable Object ("Store").
 // The admin password is the ADMIN_PASSWORD secret (Cloudflare dashboard → Worker → Settings → Variables and Secrets).
 
@@ -15,9 +16,9 @@ const MODES = ['in-person', 'telemedicine'];
 const DEFAULT_SETTINGS = {
   clinic: { phone: '(206) 507-2504', address1: '2700 Richards Rd, Suite 204A', address2: 'Bellevue, WA 98005' },
   visitTypes: [
-    { id: 'consult', name: 'Free 20-minute consultation', minutes: 20, active: true },
-    { id: 'initial', name: 'Lab draw & full initial consultation', minutes: 60, active: true },
-    { id: 'followup', name: 'Follow-up visit', minutes: 30, active: true },
+    { id: 'consult', name: 'Free 20-minute consultation', name_zh: '免费 20 分钟咨询', minutes: 20, active: true },
+    { id: 'initial', name: 'Lab draw & full initial consultation', name_zh: '抽血化验及完整初诊', minutes: 60, active: true },
+    { id: 'followup', name: 'Follow-up visit', name_zh: '复诊', minutes: 30, active: true },
   ],
   // 0 = Sunday … 6 = Saturday; null = closed
   hours: [null, { start: '09:00', end: '17:00' }, { start: '09:00', end: '17:00' }, { start: '09:00', end: '17:00' }, { start: '09:00', end: '17:00' }, { start: '09:00', end: '17:00' }, null],
@@ -30,6 +31,28 @@ const DEFAULT_SETTINGS = {
 };
 
 // ---------- small helpers ----------
+// Patient-facing messages in Chinese (the API gets the page language in the x-lang header)
+const ZH = {
+  'Please choose a visit type.': '请选择就诊类型。',
+  'Please choose a date and time.': '请选择日期和时间。',
+  'Please choose in person or telemedicine.': '请选择到诊或远程视频就诊。',
+  'Please enter your name.': '请填写您的姓名。',
+  'Please enter a phone number we can reach you at.': '请填写可以联系到您的电话号码。',
+  'Please check your email address.': '请检查您的电子邮箱地址。',
+  'Please enter your email address.': '请填写您的电子邮箱地址。',
+  'Sorry, that time was just taken. Please choose another.': '抱歉，这个时间刚刚被预约了，请选择其他时间。',
+  'Please confirm the consent box to book.': '请勾选同意框后再预约。',
+  'Too many bookings from this connection. Please call or text us.': '此网络的预约次数过多，请致电或发短信联系我们。',
+  'Booking not found.': '找不到该预约。',
+  'This booking could not be cancelled. Please call or text us.': '无法取消该预约，请致电或发短信联系我们。',
+  'Something went wrong. Please try again, or call or text us.': '出了点问题，请重试，或致电、发短信联系我们。',
+  'Please enter an email address or phone number so we can reply.': '请填写电子邮箱或电话号码，以便我们回复您。',
+  'Please write a message.': '请填写留言内容。',
+  'Please confirm the consent box to send your message.': '请勾选同意框后再发送留言。',
+  'Too many messages from this connection. Please call or text us.': '此网络发送的留言过多，请致电或发短信联系我们。',
+};
+const tr = (lang, msg) => (String(lang || '').startsWith('zh') && ZH[msg]) || msg;
+
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } });
 const bad = (msg, status = 400) => json({ error: msg }, status);
@@ -86,6 +109,7 @@ function cleanSettings(input) {
     s.visitTypes = input.visitTypes.slice(0, 20).map((t) => ({
       id: String(t.id || '').replace(/[^a-z0-9-]/gi, '').slice(0, 32) || randomHex(4),
       name: String(t.name || '').trim().slice(0, 80),
+      name_zh: String(t.name_zh || '').trim().slice(0, 80),
       minutes: Math.min(480, Math.max(5, Math.round(Number(t.minutes) || 30))),
       active: t.active !== false,
     })).filter((t) => t.name && !seen.has(t.id) && seen.add(t.id));
@@ -117,6 +141,9 @@ export class Store extends DurableObject {
         type TEXT NOT NULL, type_name TEXT NOT NULL, mode TEXT NOT NULL, name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT NOT NULL,
         status TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT 'online', created INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS bookings_date ON bookings(date);
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, contact TEXT NOT NULL, message TEXT NOT NULL,
+        lang TEXT NOT NULL DEFAULT 'en', page TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, created INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS hits (k TEXT NOT NULL, t INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS hits_k ON hits(k, t);`);
   }
@@ -197,7 +224,7 @@ export class Store extends DurableObject {
 
   publicInfo() {
     const s = this.getSettings();
-    return { visitTypes: s.visitTypes.filter((t) => t.active).map(({ id, name, minutes }) => ({ id, name, minutes })), maxDaysAhead: s.maxDaysAhead, today: nowLA().date, clinic: s.clinic };
+    return { visitTypes: s.visitTypes.filter((t) => t.active).map(({ id, name, name_zh, minutes }) => ({ id, name, name_zh, minutes })), maxDaysAhead: s.maxDaysAhead, today: nowLA().date, clinic: s.clinic };
   }
 
   availableDates(typeId, month) {
@@ -272,9 +299,45 @@ export class Store extends DurableObject {
     return true;
   }
 
+  // Messages from the website's "Send the doctor a message" form
+  addMessage(m) {
+    const name = String(m.name || '').trim().slice(0, 100);
+    const contact = String(m.contact || '').trim().slice(0, 120);
+    const message = String(m.message || '').trim().slice(0, 2000);
+    if (!name) return { error: 'Please enter your name.' };
+    if (!/@/.test(contact) && (contact.match(/\d/g) || []).length < 7) return { error: 'Please enter an email address or phone number so we can reply.' };
+    if (!message) return { error: 'Please write a message.' };
+    this.sql.exec("INSERT INTO messages (id, name, contact, message, lang, page, status, created) VALUES (?, ?, ?, ?, ?, ?, 'new', ?)",
+      randomHex(8), name, contact, message, String(m.lang || 'en').slice(0, 10), String(m.page || '').slice(0, 200), Date.now());
+    return { ok: true };
+  }
+
+  listMessages(view) {
+    const s = this.getSettings();
+    this.sql.exec('DELETE FROM messages WHERE created < ?', Date.now() - s.retentionDays * 864e5);
+    const where = { new: "WHERE status = 'new'", read: "WHERE status = 'read'" }[view] || '';
+    return {
+      messages: this.sql.exec(`SELECT * FROM messages ${where} ORDER BY created DESC LIMIT 500`).toArray(),
+      unread: this.sql.exec("SELECT COUNT(*) AS n FROM messages WHERE status = 'new'").one().n,
+    };
+  }
+
+  updateMessage(id, status) {
+    if (!['new', 'read'].includes(status)) return false;
+    this.sql.exec('UPDATE messages SET status = ? WHERE id = ?', status, id);
+    return true;
+  }
+
+  deleteMessage(id) {
+    this.sql.exec('DELETE FROM messages WHERE id = ?', id);
+    return true;
+  }
+
   byToken(token) {
-    const r = this.sql.exec('SELECT date, start, minutes, type_name, mode, name, status FROM bookings WHERE token = ?', String(token)).toArray()[0];
-    return r || null;
+    const r = this.sql.exec('SELECT date, start, minutes, type, type_name, mode, name, status FROM bookings WHERE token = ?', String(token)).toArray()[0];
+    if (!r) return null;
+    const t = this.getSettings().visitTypes.find((v) => v.id === r.type);
+    return { ...r, type_name_zh: (t && t.name_zh) || '' };
   }
 
   cancelByToken(token) {
@@ -329,6 +392,8 @@ async function api(request, env, url) {
   const path = url.pathname;
   const method = request.method;
   const ip = request.headers.get('cf-connecting-ip') || 'local';
+  const lang = request.headers.get('x-lang') || 'en';
+  const fail = (msg, status = 400) => bad(tr(lang, msg), status);
 
   // Writes must come from this site (blocks cross-site form posts).
   if (method !== 'GET') {
@@ -346,20 +411,30 @@ async function api(request, env, url) {
   if (path === '/api/bookings' && method === 'POST') {
     const body = await readJson(request, 10_000);
     if (body.website) return json({ ok: true }); // honeypot field filled in: a bot
-    if (body.consent !== true) return bad('Please confirm the consent box to book.');
-    if (!(await db.hit(`book:${ip}`, 6, 3600))) return bad('Too many bookings from this connection. Please call or text us.', 429);
+    if (body.consent !== true) return fail('Please confirm the consent box to book.');
+    if (!(await db.hit(`book:${ip}`, 6, 3600))) return fail('Too many bookings from this connection. Please call or text us.', 429);
     const r = await db.createBooking({ type: body.type, date: body.date, start: Number(body.start), mode: body.mode, name: body.name, phone: body.phone, email: body.email });
-    if (r.error) return bad(r.error);
+    if (r.error) return fail(r.error);
     const b = r.booking;
-    return json({ ok: true, booking: { date: b.date, start: b.start, minutes: b.minutes, type_name: b.type_name, mode: b.mode, name: b.name }, token: b.token });
+    const vt = (await db.getSettings()).visitTypes.find((v) => v.id === b.type);
+    return json({ ok: true, booking: { date: b.date, start: b.start, minutes: b.minutes, type_name: b.type_name, type_name_zh: (vt && vt.name_zh) || '', mode: b.mode, name: b.name }, token: b.token });
   }
   if (path === '/api/booking' && method === 'GET') {
     const b = await db.byToken(url.searchParams.get('t') || '');
-    return b ? json({ booking: b }) : bad('Booking not found.', 404);
+    return b ? json({ booking: b }) : fail('Booking not found.', 404);
   }
   if (path === '/api/booking/cancel' && method === 'POST') {
     const body = await readJson(request, 2_000);
-    return (await db.cancelByToken(body.t || '')) ? json({ ok: true }) : bad('This booking could not be cancelled. Please call or text us.', 404);
+    return (await db.cancelByToken(body.t || '')) ? json({ ok: true }) : fail('This booking could not be cancelled. Please call or text us.', 404);
+  }
+
+  if (path === '/api/messages' && method === 'POST') {
+    const body = await readJson(request, 10_000);
+    if (body.website) return json({ ok: true }); // honeypot
+    if (body.consent !== true) return fail('Please confirm the consent box to send your message.');
+    if (!(await db.hit(`msg:${ip}`, 5, 3600))) return fail('Too many messages from this connection. Please call or text us.', 429);
+    const r = await db.addMessage({ ...body, lang });
+    return r.error ? fail(r.error) : json({ ok: true });
   }
 
   // Admin
@@ -414,6 +489,12 @@ async function api(request, env, url) {
       const r = await db.createBooking({ ...body, start: Number(body.start) }, { admin: true });
       return r.error ? bad(r.error) : json({ ok: true, booking: r.booking });
     }
+  }
+  if (path === '/api/admin/messages' && method === 'GET') return json(await db.listMessages(url.searchParams.get('view') || 'all'));
+  const mm = path.match(/^\/api\/admin\/messages\/([a-f0-9]+)$/);
+  if (mm) {
+    if (method === 'PATCH') { const body = await readJson(request, 2_000); return (await db.updateMessage(mm[1], body.status)) ? json({ ok: true }) : bad('Invalid status'); }
+    if (method === 'DELETE') { await db.deleteMessage(mm[1]); return json({ ok: true }); }
   }
   const m = path.match(/^\/api\/admin\/bookings\/([a-f0-9]+)$/);
   if (m) {
@@ -500,7 +581,7 @@ export default {
       return env.ASSETS.fetch(request);
     } catch (err) {
       console.error(err);
-      if (url.pathname.startsWith('/api/')) return bad('Something went wrong. Please try again, or call or text us.', 500);
+      if (url.pathname.startsWith('/api/')) return bad(tr(request.headers.get('x-lang'), 'Something went wrong. Please try again, or call or text us.'), 500);
       return env.ASSETS.fetch(request); // never take the site down: fall back to the plain page
     }
   },

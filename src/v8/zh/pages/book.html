@@ -1,0 +1,74 @@
+@title 预约 | EternaWell Medicine
+@desc 在线预约免费的 20 分钟咨询，无需注册账户；也可致电或发短信至 (206) 507-2504。华盛顿州贝尔维尤到诊或远程视频就诊。
+@shape 0
+@class inner
+@field 0
+<main id="main">
+  <section class="page-hero">
+    <div class="wrap">
+      <div class="content">
+        <span class="eyebrow">立即预约</span>
+        <h1>在线<em>预约就诊。</em></h1>
+        <p class="lede">无需注册账户。选择就诊类型和时间，然后填写姓名、电话和电子邮箱。您会立即看到预约确认，以及一个在计划有变时用于取消的链接。</p>
+        <p class="quiet-line">可使用 FSA / HSA · 首次 20 分钟咨询免费 · 到诊及远程视频就诊</p>
+      </div>
+      <figure class="ph warm r-4x5"><img src="https://images.unsplash.com/photo-1764727291644-5dcb0b1a0375?auto=format&fit=crop&w=1000&q=70" alt="诊所前台" loading="lazy" data-stock><figcaption class="ph-label">照片 · 前台</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="section tight" id="online">
+    <div class="wrap">
+      <h2 class="visually-hidden">在线预约</h2>
+      <div class="booking" id="booking" data-tel="{{PHONE_TEL}}">
+        <noscript><p class="booking-empty lede">在线预约需要启用 JavaScript。请致电或发短信至 <a href="tel:{{PHONE_TEL}}">{{PHONE_DISPLAY}}</a>。</p></noscript>
+      </div>
+      <p class="booking-note">预约时请不要填写病情信息。首次就诊前，我们会发给您一份安全的健康问卷。</p>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <div class="wrap">
+      <div class="options two" data-reveal>
+        <div>
+          <span class="eyebrow">想打电话？</span>
+          <a href="tel:{{PHONE_TEL}}" class="big">{{PHONE_DISPLAY}}</a>
+          <p>前台可以为您安排预约并解答问题。</p>
+        </div>
+        <div>
+          <span class="eyebrow">短信预约</span>
+          <a href="sms:{{PHONE_TEL}}" class="big">{{PHONE_DISPLAY}}</a>
+          <p>请发短信告诉我们您的姓名和方便联系的时间。请不要填写病情信息。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band-dark section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">接下来</span>
+        <h2>您的<em>第一步。</em></h2>
+      </div>
+      <ol class="big-steps">
+        <li data-reveal><span class="n">01</span><b>在线预约</b><span class="d">在上方选择时间。无需账户，没有注册费，无需任何承诺。</span></li>
+        <li data-reveal><span class="n">02</span><b>免费 20 分钟咨询</b><span class="d">到诊或远程视频与医生面谈，免费讨论您的症状和目标。</span></li>
+        <li data-reveal><span class="n">03</span><b>抽血化验及完整初诊</b><span class="d">我们会进行全面的抽血化验并完成完整的初诊，为您制定个性化治疗方案。</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="cta solo" data-reveal>
+        <span class="eyebrow">已经是患者？</span>
+        <h2>访问<em>患者门户。</em></h2>
+        <p>现有患者可以登录查看消息、检查结果和表格。预约新的就诊不需要使用患者门户。</p>
+        <div class="actions">
+          <a href="{{PORTAL_URL}}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">打开患者门户 {{EXT}}<span class="visually-hidden">（在新标签页打开）</span></a>
+        </div>
+        <p class="cta-note">{{ADDRESS_1}}, {{ADDRESS_2}}</p>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="{{ROOT}}/assets/booking.js" defer></script>

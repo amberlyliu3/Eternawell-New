@@ -233,7 +233,9 @@ function start() {
     const sx = small.matches ? 0 : Math.min(2.5, halfW * 0.5);
     field.position.x = (scrollMode ? sideAt(morph) : pageSide) * sx;
     field.position.y = small.matches ? 0.6 : 0;
-    field.scale.setScalar(small.matches ? 0.8 : scrollMode ? 1 : 0.9);
+    // On narrow (portrait) screens, shrink the shapes so the widest one (about 2.4 units) fits the width
+    const fit = Math.min(1, (halfW * 0.9) / 2.4);
+    field.scale.setScalar(small.matches ? Math.min(0.8, fit) : (scrollMode ? 1 : 0.9) * Math.max(fit, 0.75));
     field.rotation.y = t * 0.07 + pointer.x * 0.2;
     field.rotation.x = pointer.y * 0.12;
 

@@ -41,6 +41,7 @@
     <p class="brand">EternaWell<span>Admin</span></p>
     <nav class="tabs" aria-label="Admin sections">
       <button type="button" data-tab="bookings" aria-current="page">Bookings</button>
+      <button type="button" data-tab="messages">Messages <span class="badge" id="unread" hidden></span></button>
       <button type="button" data-tab="website">Edit website</button>
       <button type="button" data-tab="availability">Availability</button>
       <button type="button" data-tab="clinic">Clinic details</button>
@@ -87,6 +88,21 @@
       <div id="bookings"></div>
     </section>
 
+    <!-- Messages -->
+    <section class="panel" data-panel="messages" hidden>
+      <div class="panel-head">
+        <h1>Messages</h1>
+        <div class="seg" role="group" aria-label="Show">
+          <button type="button" data-mview="all" aria-pressed="true">All</button>
+          <button type="button" data-mview="new" aria-pressed="false">Unread</button>
+          <button type="button" data-mview="read" aria-pressed="false">Read</button>
+        </div>
+      </div>
+      <p class="hint">Messages patients send from the "Send the doctor a message" box at the bottom of every page. Reply by phone or email.</p>
+      <p class="status" id="messages-status" aria-live="polite"></p>
+      <ul class="mlist" id="messages"></ul>
+    </section>
+
     <!-- Website editor -->
     <section class="panel" data-panel="website" hidden>
       <div class="panel-head">
@@ -94,21 +110,33 @@
         <div class="row">
           <label class="field inline"><span>Page</span>
             <select id="page">
-              <option value="">Home</option>
-              <option value="services/">Services</option>
-              <option value="about/">Meet the Doctor</option>
-              <option value="membership/">Membership</option>
-              <option value="products/">Products</option>
-              <option value="faq/">FAQ</option>
-              <option value="book/">Book</option>
-              <option value="legal/">Privacy &amp; policies</option>
+              <optgroup label="English">
+                <option value="">Home</option>
+                <option value="services/">Services</option>
+                <option value="about/">Meet the Doctor</option>
+                <option value="membership/">Membership</option>
+                <option value="products/">Products</option>
+                <option value="faq/">FAQ</option>
+                <option value="book/">Book</option>
+                <option value="legal/">Privacy &amp; policies</option>
+              </optgroup>
+              <optgroup label="中文 (Chinese)">
+                <option value="zh/">首页 Home</option>
+                <option value="zh/services/">服务 Services</option>
+                <option value="zh/about/">认识医生 Meet the Doctor</option>
+                <option value="zh/membership/">会员 Membership</option>
+                <option value="zh/products/">产品 Products</option>
+                <option value="zh/faq/">常见问题 FAQ</option>
+                <option value="zh/book/">预约 Book</option>
+                <option value="zh/legal/">隐私与政策 Privacy</option>
+              </optgroup>
             </select>
           </label>
           <button type="button" class="btn ghost" id="discard" disabled>Discard changes</button>
           <button type="button" class="btn" id="save" disabled>Save changes</button>
         </div>
       </div>
-      <p class="hint">Click any text on the page to change it, then press <b>Save changes</b>. Click a photo to replace it. Highlighted <span class="todo-sample">[brackets]</span> are blanks still to fill in. Text in the footer and the "Book" box at the bottom is shared by every page.</p>
+      <p class="hint">English and Chinese pages are edited separately: choose a page from the list. Click any text on the page to change it, then press <b>Save changes</b>. Click a photo to replace it. Highlighted <span class="todo-sample">[brackets]</span> are blanks still to fill in. Text in the footer and the "Book" box at the bottom is shared by every page.</p>
       <p class="status" id="edit-status" aria-live="polite"></p>
       <div class="frame-wrap"><iframe id="editor" title="Website page in editing mode"></iframe></div>
       <details class="card edited">

@@ -52,6 +52,7 @@
 
   function start() {
     show('app');
+    loadMessages();
     api('/api/admin/settings').then(function (s) { settings = s; fillTypeSelect(); renderAvailability(); fillClinic(); });
     loadBookings();
   }
@@ -65,6 +66,7 @@
       $$('.panel').forEach(function (p) { p.hidden = p.dataset.panel !== b.dataset.tab; });
       if (b.dataset.tab === 'website' && !$('#editor').src) loadPage();
       if (b.dataset.tab === 'bookings') loadBookings();
+      if (b.dataset.tab === 'messages') loadMessages();
     });
   });
 
@@ -163,6 +165,43 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
 
+  // ---------- messages ----------
+  var mview = 'all';
+  $$('[data-mview]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      mview = b.dataset.mview;
+      $$('[data-mview]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      loadMessages();
+    });
+  });
+  function loadMessages() {
+    api('/api/admin/messages?view=' + mview).then(function (d) {
+      var badge = $('#unread');
+      badge.hidden = !d.unread;
+      badge.textContent = d.unread;
+      badge.setAttribute('aria-label', d.unread + ' unread');
+      $('#messages').innerHTML = d.messages.length ? d.messages.map(function (m) {
+        var contact = /@/.test(m.contact) ? '<a href="mailto:' + esc(m.contact) + '">' + esc(m.contact) + '</a>' : '<a href="tel:' + esc(m.contact.replace(/[^\d+]/g, '')) + '">' + esc(m.contact) + '</a>';
+        return '<li class="m ' + m.status + '" data-id="' + m.id + '"><div class="m-head"><b>' + esc(m.name) + '</b>' + (m.status === 'new' ? '<span class="chip confirmed">New</span>' : '') +
+          (m.lang.indexOf('zh') === 0 ? '<span class="chip">中文</span>' : '') + '<span class="m-when">' + new Date(m.created).toLocaleString() + '</span></div>' +
+          '<p class="m-contact">' + contact + '</p><p class="m-body">' + esc(m.message) + '</p>' +
+          '<div class="acts">' + (m.status === 'new' ? '<button type="button" class="btn ghost sm" data-mact="read">Mark as read</button>' : '<button type="button" class="btn ghost sm" data-mact="new">Mark as unread</button>') +
+          '<button type="button" class="btn ghost sm danger" data-mact="delete">Delete</button></div></li>';
+      }).join('') : '<li class="empty">No messages' + (mview === 'new' ? ' waiting.' : ' yet.') + '</li>';
+    }).catch(function (e) { status($('#messages-status'), e.message, true); });
+  }
+  $('#messages').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mact]');
+    if (!b) return;
+    var id = b.closest('li').dataset.id;
+    var act = b.dataset.mact;
+    if (act === 'delete' && b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Delete for good?'; return; }
+    b.disabled = true;
+    (act === 'delete' ? api('/api/admin/messages/' + id, { method: 'DELETE' }) : api('/api/admin/messages/' + id, { method: 'PATCH', body: { status: act } }))
+      .then(loadMessages)
+      .catch(function (e2) { status($('#messages-status'), e2.message, true); b.disabled = false; });
+  });
+
   // ---------- website editor ----------
   var frame = $('#editor');
   function loadPage() { dirty(0); frame.src = '/v8/' + $('#page').value + '?edit=1'; loadEdited(); }
@@ -237,6 +276,7 @@
     $('#types').innerHTML = settings.visitTypes.map(function (t, i) {
       return '<div class="type" data-i="' + i + '" data-id="' + esc(t.id) + '">' +
         '<label class="field"><span>Name</span><input value="' + esc(t.name) + '" data-k="name"></label>' +
+        '<label class="field"><span>Chinese name</span><input value="' + esc(t.name_zh || '') + '" data-k="name_zh" lang="zh-Hans"></label>' +
         '<label class="field"><span>Minutes</span><input type="number" min="5" max="480" value="' + t.minutes + '" data-k="minutes"></label>' +
         '<label class="check"><input type="checkbox"' + (t.active ? ' checked' : '') + ' data-k="active"><span>Bookable online</span></label>' +
         '<button type="button" class="btn ghost sm danger" data-remove="' + i + '">Remove</button></div>';
@@ -257,7 +297,7 @@
   });
   function readTypes() {
     settings.visitTypes = $$('#types .type').map(function (row) {
-      return { id: row.dataset.id, name: $('[data-k="name"]', row).value, minutes: Number($('[data-k="minutes"]', row).value), active: $('[data-k="active"]', row).checked };
+      return { id: row.dataset.id, name: $('[data-k="name"]', row).value, name_zh: $('[data-k="name_zh"]', row).value, minutes: Number($('[data-k="minutes"]', row).value), active: $('[data-k="active"]', row).checked };
     });
   }
 

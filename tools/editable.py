@@ -5,7 +5,8 @@ Usage: python3 tools/editable.py site/v8
 Adds data-edit="<scope>:<id>" to each block of text (headings, paragraphs, list items, ...)
 and data-edit-img="<scope>:img-<id>" to each photo (the <img>, or the empty placeholder figure).
 Ids come from a hash of the original text, so they stay the same when other parts of a page change.
-Text in the footer and the booking call-to-action is shared across pages (scope "shared").
+Text in the footer and the booking call-to-action is shared across pages (scope "shared", or
+"zh-shared" for the Chinese pages under zh/).
 """
 import hashlib
 import pathlib
@@ -104,7 +105,7 @@ def candidate(node):
 def scope_of(node, page):
     for a in node.ancestors():
         if a.tag == 'footer' or 'cta-sec' in a.classes:
-            return 'shared'
+            return 'zh-shared' if page.startswith('zh-') else 'shared'
     return page
 
 
@@ -158,6 +159,8 @@ def main(out_dir):
     for f in sorted(out.rglob('index.html')):
         rel = f.parent.relative_to(out)
         page = 'home' if str(rel) == '.' else str(rel).replace('/', '-')
+        if page == 'zh':
+            page = 'zh-home'
         total += mark(f, page)
     print(f'marked {total} editable items in {out_dir}')
 

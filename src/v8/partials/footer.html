@@ -3,15 +3,16 @@
     <div>
       <p class="foot-logo">EternaWell<span class="logo-sub">Medicine</span></p>
       <p>Hormone, weight, screening and prescription skin care, in person in Bellevue, WA and by telemedicine.</p>
-      <form class="signup" name="newsletter" method="POST" action="{{BASE}}/thanks/" data-netlify="true" netlify-honeypot="bot-field">
-        <input type="hidden" name="form-name" value="newsletter">
-        <p class="hp"><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
-        <label for="signup-email">Occasional notes on hormone health and clinic news</label>
-        <div class="row">
-          <input type="email" id="signup-email" name="email" placeholder="Email address" autocomplete="email" required>
-          <button type="submit">Subscribe</button>
-        </div>
-        <p class="signup-note">We use your email only to send these notes. Unsubscribe any time. See our <a href="{{BASE}}/legal/#privacy">Privacy Policy</a>.</p>
+      <form class="msg" id="message-form" novalidate data-sending="Sending…" data-sent="Thank you. Your message has been sent, and we'll get back to you soon." data-failed="Your message couldn't be sent. Please call or text us instead.">
+        <h4>Send the doctor a message</h4>
+        <p class="msg-intro">Have a question before booking? Leave a message and we'll get back to you. Please don't include detailed medical information. For emergencies, call 911.</p>
+        <label class="msg-field"><span>Name</span><input name="name" autocomplete="name" required maxlength="100"></label>
+        <label class="msg-field"><span>Email or phone, so we can reply</span><input name="contact" autocomplete="email" required maxlength="120"></label>
+        <label class="msg-field"><span>Message</span><textarea name="message" rows="4" required maxlength="2000"></textarea></label>
+        <label class="msg-hp" aria-hidden="true">Company <input name="website" tabindex="-1" autocomplete="off"></label>
+        <label class="msg-consent"><input type="checkbox" name="consent" required><span>I agree that EternaWell Medicine may use this information to reply to me, as described in the <a href="{{BASE}}/legal/#health-data">Consumer Health Data Privacy Policy</a>.</span></label>
+        <p class="msg-status" role="status"></p>
+        <button type="submit" class="btn btn-primary">Send message</button>
       </form>
     </div>
     <div>
@@ -50,7 +51,7 @@
 </footer>
 
 <script src="/vendor/lenis.min.js" defer></script>
-<script src="{{BASE}}/assets/site.js" defer></script>
+<script src="{{ROOT}}/assets/site.js" defer></script>
 {{FIELD_SCRIPTS}}
 </body>
 </html>
