@@ -1,0 +1,53 @@
+<footer>
+  <div class="wrap foot">
+    <div>
+      <p>Optimizing hormone health with evidence-based medicine and genuine care, in person and online.</p>
+      <form class="signup" name="newsletter" method="POST" action="{{BASE}}/thanks/" data-netlify="true" netlify-honeypot="bot-field">
+        <input type="hidden" name="form-name" value="newsletter">
+        <p class="hp"><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
+        <label for="signup-email">Occasional notes on hormone health and clinic news</label>
+        <div class="row">
+          <input type="email" id="signup-email" name="email" placeholder="Email address" autocomplete="email" required>
+          <button type="submit">Subscribe</button>
+        </div>
+      </form>
+    </div>
+    <div>
+      <h4>Navigation</h4>
+      <ul class="links">
+        <li><a href="{{BASE}}/services/">Services</a></li>
+        <li><a href="{{BASE}}/about/">About Us</a></li>
+        <li><a href="{{BASE}}/membership/">Membership</a></li>
+        <li><a href="{{BASE}}/products/">Products</a></li>
+        <li><a href="{{BASE}}/faq/">FAQ</a></li>
+        <li><a href="{{BASE}}/book/">Book Now</a></li>
+        <li><a href="{{PORTAL_URL}}" target="_blank" rel="noopener noreferrer">Patient Portal {{EXT}}</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Visit</h4>
+      <ul class="links">
+        <li>{{ADDRESS_1}}<br>{{ADDRESS_2}}</li>
+        <li><a href="tel:{{PHONE_TEL}}">{{PHONE_DISPLAY}}</a></li>
+        <li><a href="sms:{{PHONE_TEL}}">Text to book</a></li>
+        <li><a href="mailto:{{EMAIL}}">{{EMAIL}}</a></li>
+        <li>HSA / FSA accepted · In person &amp; telemedicine</li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap legal-row">
+    <span>© 2026 Eternawell Medical. All rights reserved.</span>
+    <nav aria-label="Legal">
+      <a href="{{BASE}}/legal/#privacy">Privacy policy</a>
+      <a href="{{BASE}}/legal/#terms">Terms of use</a>
+      <a href="{{BASE}}/legal/#hipaa">Notice of privacy practices</a>
+    </nav>
+  </div>
+  <div class="wrap"><p class="wordmark" aria-hidden="true">Eternawell</p></div>
+</footer>
+
+<script src="/vendor/lenis.min.js" defer></script>
+<script src="{{BASE}}/assets/site.js" defer></script>
+{{FIELD_SCRIPTS}}
+</body>
+</html>
