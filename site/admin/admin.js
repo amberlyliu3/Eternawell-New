@@ -266,6 +266,60 @@
     renderTypes();
     if (!calMonth) calMonth = new Date().toISOString().slice(0, 7);
     renderBlockCal();
+    renderGoogle();
+  }
+
+  // ---------- Google Calendar ----------
+  function renderGoogle() {
+    var g = settings.google;
+    $('#g-cal').value = g.calendarId;
+    $('#g-add').checked = g.addEvents;
+    $('#g-busy').checked = g.blockBusy;
+    $('#g-detail').value = g.detail;
+    api('/api/admin/google').then(function (d) {
+      var st = $('#g-status');
+      $('#g-share').hidden = !d.keyAdded;
+      $('#g-email').textContent = d.serviceEmail;
+      if (!d.keyAdded) { st.textContent = 'Not set up: the service account key hasn\'t been added to Cloudflare yet (secret GOOGLE_SERVICE_ACCOUNT_KEY).'; st.className = 'g-status bad'; return; }
+      if (!g.calendarId) { st.textContent = 'Key added. Enter the calendar ID below, then test the connection.'; st.className = 'g-status'; return; }
+      if (d.status && !d.status.ok) { st.textContent = 'Problem: ' + d.status.message + ' (' + new Date(d.status.at).toLocaleString() + ')'; st.className = 'g-status bad'; return; }
+      st.textContent = 'Connected' + (d.status ? ' · ' + d.status.message : '.'); st.className = 'g-status good';
+    });
+  }
+  function readGoogle() {
+    settings.google = { calendarId: $('#g-cal').value.trim(), addEvents: $('#g-add').checked, blockBusy: $('#g-busy').checked, detail: $('#g-detail').value };
+  }
+  $('#g-copy').addEventListener('click', function () {
+    navigator.clipboard.writeText($('#g-email').textContent).then(function () { status($('#g-result'), 'Copied.'); });
+  });
+  $('#g-test').addEventListener('click', function () {
+    var b = this;
+    b.disabled = true;
+    status($('#g-result'), 'Testing…');
+    api('/api/admin/google/test', { method: 'POST', body: { calendarId: $('#g-cal').value.trim() } })
+      .then(function (d) { var el = $('#g-result'); el.textContent = d.message; el.classList.toggle('is-error', !d.ok); })
+      .catch(function (e) { status($('#g-result'), e.message, true); })
+      .then(function () { b.disabled = false; });
+  });
+  $('#g-sync').addEventListener('click', function () {
+    var b = this;
+    if (dirtyAvailability()) { status($('#g-result'), 'Press Save availability first, then add the bookings.', true); return; }
+    b.disabled = true;
+    status($('#g-result'), 'Adding bookings…');
+    api('/api/admin/google/sync', { method: 'POST' })
+      .then(function (d) {
+        var ok = !d.status || d.status.ok;
+        var el = $('#g-result');
+        el.textContent = ok ? d.count + ' upcoming bookings are on the calendar.' : 'Problem: ' + d.status.message;
+        el.classList.toggle('is-error', !ok);
+        renderGoogle();
+      })
+      .catch(function (e) { status($('#g-result'), e.message, true); })
+      .then(function () { b.disabled = false; });
+  });
+  function dirtyAvailability() {
+    var g = settings.google;
+    return $('#g-cal').value.trim() !== g.calendarId || $('#g-add').checked !== g.addEvents || $('#g-busy').checked !== g.blockBusy || $('#g-detail').value !== g.detail;
   }
   $('#hours').addEventListener('change', function (e) {
     if (e.target.type !== 'checkbox') return;
@@ -359,6 +413,7 @@
 
   $('#save-availability').addEventListener('click', function () {
     readTypes();
+    readGoogle();
     settings.hours = $$('#hours .hour').map(function (row) {
       var on = $('input[type="checkbox"]', row).checked;
       var t = $$('input[type="time"]', row);

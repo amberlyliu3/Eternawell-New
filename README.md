@@ -27,6 +27,7 @@ The Worker runs first for `/v8/*`, `/api/*`, `/admin/*` and `/media/*`:
 - **Messages**: the "Send the doctor a message" box in the v8 footer; messages appear in the admin's Messages tab.
 - **Admin area** at `/admin/` (`site/admin/`): bookings, messages, website text and photo editing (English and Chinese pages separately), availability (weekly hours, blocked days such as EZCall work days, visit types) and clinic details.
 - Everything is stored in one SQLite-backed Durable Object (`Store`), so there is no separate database to set up.
+- **Google Calendar (optional)**: add the service account's JSON key file as the `GOOGLE_SERVICE_ACCOUNT_KEY` secret, share the calendar with the service account's email ("Make changes to events"), then enter the calendar ID under Admin → Availability → Google Calendar. Bookings become calendar events, cancellations remove them, and busy times on that calendar can be hidden from online booking. `GOOGLE_API_BASE` / `GOOGLE_TOKEN_URL` exist only for local testing against a stand-in server; never set them in Cloudflare.
 - The admin password is the `ADMIN_PASSWORD` secret: Cloudflare dashboard → Workers & Pages → eternawell-new → Settings → Variables and Secrets → Add → type Secret.
 - Edits made in the admin are stored on Cloudflare and applied when pages are served; they are not written back to this repo.
 

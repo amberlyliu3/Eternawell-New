@@ -171,6 +171,31 @@
             <button type="button" class="btn ghost" id="repeat-add">Block these days</button>
           </div>
         </div>
+        <div class="card" id="google">
+          <h2>Google Calendar</h2>
+          <p class="muted">Put each booking on the doctor's Google Calendar automatically, and optionally hide times when that calendar is busy (for example EZCall shifts).</p>
+          <p class="g-status" id="g-status" aria-live="polite"></p>
+          <div class="g-share" id="g-share" hidden>
+            <p class="muted">In Google Calendar, share the calendar with this address and choose <b>Make changes to events</b>:</p>
+            <p class="row"><code id="g-email"></code><button type="button" class="btn ghost sm" id="g-copy">Copy</button></p>
+          </div>
+          <label class="field"><span>Calendar ID (Google Calendar → Settings → your calendar → Integrate calendar)</span><input id="g-cal" placeholder="name@gmail.com or …@group.calendar.google.com" spellcheck="false" autocomplete="off"></label>
+          <label class="check"><input type="checkbox" id="g-add"><span>Add each booking to this calendar</span></label>
+          <label class="check"><input type="checkbox" id="g-busy"><span>Hide times when this calendar is busy</span></label>
+          <label class="field"><span>What the calendar event shows</span>
+            <select id="g-detail">
+              <option value="minimal">Visit type, initials and in person / telemedicine (recommended)</option>
+              <option value="full">Patient's full name, phone and email</option>
+            </select>
+          </label>
+          <p class="muted">Use "full" only if the doctor's Google account is covered by a HIPAA agreement (Google Workspace with Google's BAA).</p>
+          <div class="row">
+            <button type="button" class="btn ghost" id="g-test">Test connection</button>
+            <button type="button" class="btn ghost" id="g-sync">Add upcoming bookings to calendar</button>
+          </div>
+          <p class="status" id="g-result" aria-live="polite"></p>
+          <p class="muted">Press <b>Save availability</b> to keep changes to these settings.</p>
+        </div>
         <div class="card">
           <h2>Weekly hours</h2>
           <p class="muted">Pacific Time. Untick a day to close it every week.</p>

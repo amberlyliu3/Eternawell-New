@@ -134,3 +134,11 @@ main { padding: 28px max(16px, 3vw) 64px; }
 .m-contact { font-size: 15px; }
 .m-body { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 80ch; }
 .m .acts { justify-content: flex-start; }
+
+/* Google Calendar */
+.g-status { padding: 10px 12px; border-radius: 4px; background: var(--deep); border: 1px solid var(--line); font-size: 15px; }
+.g-status:empty { display: none; }
+.g-status.good { color: var(--ok); border-color: rgba(47, 107, 58, 0.35); }
+.g-status.bad { color: var(--bad); border-color: rgba(161, 40, 27, 0.35); }
+.g-share code { overflow-wrap: anywhere; font-size: 14px; }
+.g-share .row { align-items: center; }
