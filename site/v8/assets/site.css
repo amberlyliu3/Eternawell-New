@@ -140,7 +140,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .menu-btn span { display: block; width: 18px; height: 1px; background: var(--ink); transition: transform 0.3s var(--ease); }
 .nav.open .menu-btn span:first-child { transform: translateY(3.5px) rotate(45deg); }
 .nav.open .menu-btn span:last-child { transform: translateY(-3.5px) rotate(-45deg); }
-@media (max-width: 1120px) {
+@media (max-width: 1279px) {
   .menu-btn { display: grid; }
   .nav-links {
     display: none; position: absolute; top: 100%; left: 0; right: 0; margin: 0;
@@ -522,21 +522,28 @@ footer { border-top: 1px solid var(--line); background: var(--deep); overflow: h
 .msg-status:empty { display: none; }
 .msg .btn { justify-self: start; }
 
-/* Language switch */
-.nav-links .lang-switch { padding: 6px 12px; border: 1px solid rgba(23, 22, 20, 0.3); border-radius: 4px; font-weight: 600; color: var(--ink); }
-.nav-links .lang-switch::after { display: none; }
-.nav-links .lang-switch:hover { border-color: var(--em); color: var(--em); }
-@media (max-width: 1120px) {
-  .nav-links .lang-switch { align-self: flex-start; margin: 14px 0 4px; padding: 8px 16px; border: 1px solid rgba(23, 22, 20, 0.3); font-family: var(--body); font-size: 16px; order: -1; }
+/* Language switch: always in the header, next to Book Now */
+.lang-switch {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; height: 44px; min-width: 44px; padding: 0 12px;
+  border: 1px solid rgba(23, 22, 20, 0.3); border-radius: 4px; font-size: 15px; font-weight: 600; color: var(--ink);
+  text-decoration: none; white-space: nowrap; transition: border-color 0.3s, color 0.3s;
 }
+.lang-switch:hover { border-color: var(--em); color: var(--em); }
+.nav-links a { white-space: nowrap; }
 
 /* Phones: keep the logo, Book Now and menu button on one line */
 @media (max-width: 560px) {
   .logo .logo-sub { display: none; }
-  .nav .wrap { gap: 10px; height: 68px; }
+  .nav .wrap { gap: 8px; height: 68px; }
   .logo { font-size: 25px; }
   .nav-cta { height: 40px; padding: 0 14px; font-size: 14px; }
-  .menu-btn { width: 42px; height: 42px; }
+  .menu-btn, .lang-switch { width: 42px; height: 42px; }
+  .lang-switch { min-width: 0; padding: 0; font-size: 14px; }
+}
+@media (max-width: 370px) {
+  .nav .wrap { padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+  .logo { font-size: 22px; }
+  .nav-cta { padding: 0 11px; font-size: 13px; }
 }
 
 /* Chinese pages: system Chinese fonts, no faux italics or wide letter-spacing */
