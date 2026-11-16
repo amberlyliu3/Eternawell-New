@@ -227,3 +227,6 @@ main { padding: 28px max(16px, 3vw) 64px; }
 .save-bar p { flex: 1 1 320px; }
 .save-bar.dirty { background: #fff4d6; border-color: #8a5300; color: #5c3900; font-weight: 600; }
 .save-bar .btn { min-width: 170px; }
+.g-kinds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: -2px 0 0 26px; padding: 0; border: 0; font-size: 14px; }
+.g-kinds legend { float: left; padding: 0; margin-right: 4px; color: var(--ink-2); }
+.g-kinds:disabled { opacity: 0.45; }

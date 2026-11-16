@@ -32,7 +32,8 @@ const DEFAULT_SETTINGS = {
   blockedTimes: [], // part of a day: { date: 'YYYY-MM-DD', start: 'HH:MM', end: 'HH:MM' }
   retentionDays: 365, // past and cancelled bookings older than this are deleted
   // Google Calendar: the calendar is shared with the service account in GOOGLE_SERVICE_ACCOUNT_KEY
-  // calendars: [{ id, label, busy }] – busy: true hides that calendar's busy times from online booking.
+  // calendars: [{ id, label, busy, block: { busy, free, allDay } }] – busy: true closes online booking when that
+  // calendar has events; block says which kinds count (timed events marked Busy or Free, and all-day events).
   // bookingCalendar: the calendar ID new bookings are added to ('' for none).
   google: { calendars: [], bookingCalendar: '', detail: 'minimal' },
 };
@@ -150,7 +151,10 @@ function cleanSettings(input) {
     let cals = Array.isArray(g.calendars) ? g.calendars : g.calendarId ? [{ id: g.calendarId, label: '', busy: g.blockBusy === true }] : [];
     const seen = new Set();
     cals = cals.slice(0, 10)
-      .map((c) => ({ id: okId(c && c.id), label: String((c && c.label) || '').trim().slice(0, 60), busy: !!(c && c.busy) }))
+      .map((c) => {
+        const k = (c && c.block) || {};
+        return { id: okId(c && c.id), label: String((c && c.label) || '').trim().slice(0, 60), busy: !!(c && c.busy), block: { busy: k.busy !== false, free: k.free !== false, allDay: k.allDay !== false } };
+      })
       .filter((c) => c.id && !seen.has(c.id) && seen.add(c.id));
     let booking = 'bookingCalendar' in g ? okId(g.bookingCalendar) : g.calendarId && g.addEvents !== false ? okId(g.calendarId) : '';
     if (!cals.some((c) => c.id === booking)) booking = '';
@@ -356,7 +360,7 @@ export class Store extends DurableObject {
   async googleBusy(settings, from, to, fresh = false) {
     const cals = settings.google.calendars.filter((c) => c.busy);
     if (!cals.length || !serviceAccount(this.env)) return [];
-    const key = `${cals.map((c) => c.id).join(',')}|${from}|${to}`;
+    const key = `${cals.map((c) => `${c.id}:${+c.block.busy}${+c.block.free}${+c.block.allDay}`).join(',')}|${from}|${to}`;
     const hit = this.busyCache.get(key);
     if (!fresh && hit && Date.now() - hit.at < 60e3) return hit.ranges;
     // a day either side covers the time-zone offset; ranges are filtered by date in slots()
@@ -375,8 +379,8 @@ export class Store extends DurableObject {
     return ranges;
   }
 
-  // One calendar's events as minute ranges. Falls back to Google's free/busy lookup (Busy events only)
-  // when the calendar is shared as "See only free/busy", which doesn't allow reading events.
+  // One calendar's events as minute ranges, keeping only the kinds chosen in c.block. Falls back to Google's
+  // free/busy lookup (Busy events only) when the calendar is shared as "See only free/busy".
   async calendarRanges(c, timeMin, timeMax) {
     const name = c.label || c.id;
     const toRange = (start, end) => {
@@ -389,13 +393,15 @@ export class Store extends DurableObject {
       const out = [];
       let pageToken = '';
       for (let page = 0; page < 5; page++) {
-        const q = new URLSearchParams({ timeMin, timeMax, singleEvents: 'true', maxResults: '2500', fields: 'nextPageToken,items(status,start,end,attendees(self,responseStatus))' });
+        const q = new URLSearchParams({ timeMin, timeMax, singleEvents: 'true', maxResults: '2500', fields: 'nextPageToken,items(status,transparency,start,end,attendees(self,responseStatus))' });
         if (pageToken) q.set('pageToken', pageToken);
         const d = await gcal(this.env, 'GET', `${calPath(c.id)}/events?${q}`);
         for (const ev of d.items || []) {
           if (ev.status === 'cancelled' || !ev.start || !ev.end) continue;
           const me = (ev.attendees || []).find((x) => x.self);
           if (me && me.responseStatus === 'declined') continue;
+          const kind = ev.start.date ? 'allDay' : ev.transparency === 'transparent' ? 'free' : 'busy';
+          if (!c.block[kind]) continue;
           out.push(toRange(ev.start, ev.end));
         }
         if (!d.nextPageToken) break;
@@ -407,7 +413,7 @@ export class Store extends DurableObject {
       const d = await gcal(this.env, 'POST', '/freeBusy', { timeMin, timeMax, timeZone: TZ, items: [{ id: c.id }] });
       const cal = (d.calendars || {})[c.id] || {};
       if (cal.errors && cal.errors.length) { const e = new Error(cal.errors[0].reason); e.status = cal.errors[0].reason === 'notFound' ? 404 : 403; throw e; }
-      return (cal.busy || []).map((x) => toRange({ dateTime: x.start }, { dateTime: x.end }));
+      return c.block.busy ? (cal.busy || []).map((x) => toRange({ dateTime: x.start }, { dateTime: x.end })) : [];
     }
   }
 

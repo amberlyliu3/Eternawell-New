@@ -400,17 +400,23 @@
     $('#g-cals').innerHTML = cals.length ? cals.map(function (c, i) {
       return '<div class="g-cal" data-row="' + i + '">' +
         '<div class="grid">' +
-        '<label class="field"><span>' + T('g.calName') + '</span><input data-k="label" value="' + esc(c.label) + '" placeholder="' + esc(T('g.calNamePh')) + '"></label>' +
+        '<label class="field"><span>' + T('g.calName') + '</span><input data-k="label" value="' + esc(c.label) + '" placeholder="' + esc(T('g.calN', i + 1)) + '"></label>' +
         '<label class="field"><span>' + T('g.calId') + '</span><input data-k="id" value="' + esc(c.id) + '" placeholder="' + esc(T('g.calPh')) + '" spellcheck="false" autocomplete="off"></label>' +
         '</div>' +
         '<label class="check"><input type="checkbox" data-k="busy"' + (c.busy ? ' checked' : '') + '><span>' + T('g.calBusy') + '</span></label>' +
+        '<fieldset class="g-kinds"' + (c.busy ? '' : ' disabled') + '><legend>' + T('g.which') + '</legend>' +
+        ['busy', 'free', 'allDay'].map(function (k) {
+          return '<label class="check"><input type="checkbox" data-kind="' + k + '"' + (!c.block || c.block[k] !== false ? ' checked' : '') + '><span>' + T('g.ev.' + k) + '</span></label>';
+        }).join('') + '</fieldset>' +
         '<div class="row"><button type="button" class="btn ghost sm" data-gtest>' + T('g.test') + '</button><button type="button" class="btn ghost sm danger" data-gremove>' + T('g.removeCal') + '</button></div>' +
         '<p class="status g-cal-result" aria-live="polite"></p></div>';
     }).join('') : '<p class="muted">' + T('g.noCals') + '</p>';
   }
   function readCals() {
     return $$('#g-cals .g-cal').map(function (row) {
-      return { id: $('[data-k="id"]', row).value.trim(), label: $('[data-k="label"]', row).value.trim(), busy: $('[data-k="busy"]', row).checked };
+      var block = {};
+      $$('[data-kind]', row).forEach(function (x) { block[x.dataset.kind] = x.checked; });
+      return { id: $('[data-k="id"]', row).value.trim(), label: $('[data-k="label"]', row).value.trim(), busy: $('[data-k="busy"]', row).checked, block: block };
     });
   }
   function fillBookingCal(selected) {
@@ -426,13 +432,18 @@
   }
   $('#g-addcal').addEventListener('click', function () {
     var cals = readCals();
-    cals.push({ id: '', label: '', busy: true });
+    cals.push({ id: '', label: '', busy: true, block: { busy: true, free: true, allDay: true } });
     var booking = $('#g-booking').value;
     renderCals(cals);
     fillBookingCal(booking);
     $$('#g-cals .g-cal').pop().querySelector('[data-k="label"]').focus();
   });
   $('#g-cals').addEventListener('input', function () { fillBookingCal($('#g-booking').value); });
+  // The Busy / Free / All-day choices only apply while the calendar blocks booking
+  $('#g-cals').addEventListener('change', function (e) {
+    if (e.target.dataset.k !== 'busy') return;
+    $('.g-kinds', e.target.closest('.g-cal')).disabled = !e.target.checked;
+  });
   $('#g-cals').addEventListener('click', function (e) {
     var row = e.target.closest('.g-cal');
     if (!row) return;
