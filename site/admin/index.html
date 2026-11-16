@@ -152,16 +152,26 @@
           <p class="muted" data-i="sc.hint"></p>
           <form class="sc-form" id="sc-form" hidden>
             <h3 data-i="sc.formTitle">Block time</h3>
-            <div class="grid">
-              <label class="field"><span data-i="f.date">Date</span><input type="date" id="sc-date" required></label>
-              <label class="check sc-allday-check"><input type="checkbox" id="sc-allday"><span data-i="sc.allDay">All day</span></label>
-              <label class="field sc-timed"><span data-i="hb.from">From</span><input type="time" id="sc-start" step="900" value="12:00"></label>
-              <label class="field sc-timed"><span data-i="hb.until">Until</span><input type="time" id="sc-end" step="900" value="13:00"></label>
-              <label class="field sc-days" hidden><span data-i="sc.lastDay">Last day</span><input type="date" id="sc-last"></label>
-              <label class="field"><span data-i="hb.repeat">Repeat</span>
-                <select id="sc-weeks"><option value="1" data-i="sc.noRepeat">Does not repeat</option><option value="4" data-i="hb.w4"></option><option value="8" data-i="hb.w8"></option><option value="13" data-i="hb.m3"></option><option value="26" data-i="hb.m6"></option></select>
-              </label>
+            <div class="sc-when">
+              <label class="field"><span data-i="sc.starts">Starts</span><input type="date" id="sc-date" required></label>
+              <label class="field sc-timed"><span class="visually-hidden" data-i="hb.from">From</span><input type="time" id="sc-start" step="900" value="12:00"></label>
+              <span class="sc-dash" aria-hidden="true">–</span>
+              <label class="field sc-timed"><span class="visually-hidden" data-i="hb.until">Until</span><input type="time" id="sc-end" step="900" value="13:00"></label>
+              <label class="field"><span data-i="sc.ends">Ends</span><input type="date" id="sc-last" required></label>
             </div>
+            <label class="check"><input type="checkbox" id="sc-allday"><span data-i="sc.allDay">All day</span></label>
+            <div class="sc-repeat">
+              <label class="field"><span data-i="hb.repeat">Repeat</span>
+                <select id="sc-repeat">
+                  <option value="none" data-i="sc.noRepeat">Does not repeat</option>
+                  <option value="daily" data-i="sc.daily">Daily</option>
+                  <option value="weekdays" data-i="sc.weekdays">Every weekday (Monday to Friday)</option>
+                  <option value="weekly" id="sc-weekly-opt">Weekly</option>
+                </select>
+              </label>
+              <label class="field" id="sc-until-wrap" hidden><span data-i="sc.repeatUntil">Repeat until</span><input type="date" id="sc-until"></label>
+            </div>
+            <p class="muted sc-summary" id="sc-summary" aria-live="polite"></p>
             <p class="error" id="sc-error" role="alert"></p>
             <div class="row"><button type="submit" class="btn" data-i="sc.save">Block</button><button type="button" class="btn ghost" id="sc-cancel" data-i="cancel">Cancel</button></div>
           </form>

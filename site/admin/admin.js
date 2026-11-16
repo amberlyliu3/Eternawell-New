@@ -549,7 +549,6 @@
     var lo = 24 * 60, hi = 0;
     d.hours.forEach(function (h) { if (h) { lo = Math.min(lo, hm2(h.start)); hi = Math.max(hi, hm2(h.end)); } });
     d.bookings.forEach(function (b) { lo = Math.min(lo, b.start); hi = Math.max(hi, b.start + b.minutes); });
-    d.blockedTimes.forEach(function (b) { if (days.indexOf(b.date) !== -1) { lo = Math.min(lo, hm2(b.start)); hi = Math.max(hi, hm2(b.end)); } });
     if (lo >= hi) { lo = 9 * 60; hi = 17 * 60; }
     lo = Math.max(0, Math.floor(lo / 60) * 60 - 60);
     hi = Math.min(24 * 60, Math.ceil(hi / 60) * 60 + 60);
@@ -582,9 +581,10 @@
       });
       d.blockedTimes.forEach(function (b, bi) {
         if (b.date !== ds) return;
-        var s0 = hm2(b.start), e0 = hm2(b.end);
+        var s0 = Math.max(hm2(b.start), lo), e0 = Math.min(hm2(b.end), hi); // only the part within the hours shown
+        if (e0 <= s0) return;
         var hb = top(e0) - top(s0);
-        col += '<button type="button" class="sc-ev sc-block' + (hb < 36 ? ' short' : '') + '" data-block="' + bi + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, hb) + 'px"><b>' + T('sc.kBlocked') + (hb < 36 ? ' ' + fmtTime(s0) : '') + '</b><span>' + fmtTime(s0) + ' – ' + fmtTime(e0) + '</span></button>';
+        col += '<button type="button" class="sc-ev sc-block' + (hb < 36 ? ' short' : '') + '" data-block="' + bi + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, hb) + 'px"><b>' + T('sc.kBlocked') + (hb < 36 ? ' ' + fmtTime(hm2(b.start)) : '') + '</b><span>' + fmtTime(hm2(b.start)) + ' – ' + fmtTime(hm2(b.end)) + '</span></button>';
       });
       d.bookings.forEach(function (b, bi) {
         if (b.date !== ds) return;
@@ -609,24 +609,63 @@
     var first = pop.querySelector('button:not([data-pop-close]), a');
     if (first) first.focus();
   }
+  // Block time form, like creating an event in Google Calendar: a start and end (date and time, or all day),
+  // optionally repeated daily, every weekday or weekly until a date.
   function openForm(date, startMin, allDay) {
     closePop();
-    var f = $('#sc-form');
-    f.hidden = false;
+    $('#sc-form').hidden = false;
     $('#sc-date').value = date || lastToday;
-    $('#sc-last').value = '';
+    $('#sc-last').value = date || lastToday;
     $('#sc-allday').checked = !!allDay;
     if (startMin !== undefined) { $('#sc-start').value = mm2hm(startMin); $('#sc-end').value = mm2hm(Math.min(startMin + 60, 23 * 60 + 45)); }
-    $('#sc-weeks').value = '1';
+    $('#sc-repeat').value = 'none';
+    $('#sc-until').value = addDays(date || lastToday, 27);
     $('#sc-error').textContent = '';
-    syncAllDay();
+    syncForm();
     $('#sc-date').focus();
   }
-  function syncAllDay() {
+  function syncForm() {
     var all = $('#sc-allday').checked;
-    $$('.sc-timed').forEach(function (el) { el.hidden = all; });
-    $$('.sc-days').forEach(function (el) { el.hidden = !all; });
+    $$('.sc-timed, .sc-dash').forEach(function (el) { el.hidden = all; });
+    var start = $('#sc-date').value;
+    if (start && (!$('#sc-last').value || $('#sc-last').value < start)) $('#sc-last').value = start;
+    if (start) $('#sc-weekly-opt').textContent = T('sc.weekly', T('days')[new Date(Date.parse(start + 'T00:00:00Z')).getUTCDay()]);
+    $('#sc-until-wrap').hidden = $('#sc-repeat').value === 'none';
+    var items = blockItems();
+    $('#sc-summary').textContent = items && items.length ? T('sc.willBlock', items.length) : '';
   }
+  // Turns the form into blocks: whole days, or hours on a day. A timed span across several days blocks from the
+  // start time to midnight, the days in between, and midnight to the end time.
+  function blockItems() {
+    var start = $('#sc-date').value, end = $('#sc-last').value || start, all = $('#sc-allday').checked;
+    var t0 = $('#sc-start').value, t1 = $('#sc-end').value, rep = $('#sc-repeat').value, until = $('#sc-until').value;
+    if (!start || end < start) return null;
+    if (!all && (!t0 || !t1 || (end === start && t1 <= t0))) return null;
+    var span = (dayNum(end) - dayNum(start));
+    function one(day) {
+      var out = [];
+      if (all) { for (var i = 0; i <= span; i++) out.push({ date: addDays(day, i), allDay: true }); return out; }
+      if (span === 0) return [{ date: day, start: t0, end: t1 }];
+      out.push({ date: day, start: t0, end: '23:59' });
+      for (var j = 1; j < span; j++) out.push({ date: addDays(day, j), allDay: true });
+      if (t1 > '00:00') out.push({ date: addDays(day, span), start: '00:00', end: t1 });
+      return out;
+    }
+    if (rep === 'none') return one(start);
+    if (!until || until < start) return null;
+    var items = [];
+    for (var d = start; d <= until && items.length < 500; d = addDays(d, rep === 'weekly' ? 7 : 1)) {
+      var w = new Date(Date.parse(d + 'T00:00:00Z')).getUTCDay();
+      if (rep === 'weekdays' && (w === 0 || w === 6)) continue;
+      items = items.concat(one(d));
+    }
+    return items.slice(0, 500);
+  }
+  function dayNum(d) { return Date.parse(d + 'T00:00:00Z') / 864e5; }
+  ['#sc-date', '#sc-last', '#sc-start', '#sc-end', '#sc-until', '#sc-repeat', '#sc-allday'].forEach(function (id) {
+    $(id).addEventListener('input', syncForm);
+    $(id).addEventListener('change', syncForm);
+  });
   function sendBlocks(body, msg) {
     return api('/api/admin/blocks', { method: 'POST', body: body }).then(function (r) {
       settings.blockedDates = r.blockedDates;
@@ -635,7 +674,6 @@
       loadSchedule();
     }).catch(function (e) { status($('#avail-status'), e.message, true); });
   }
-  $('#sc-allday').addEventListener('change', syncAllDay);
   $('#sc-new').addEventListener('click', function () { openForm(lastToday, 12 * 60, false); });
   $('#sc-cancel').addEventListener('click', function () { $('#sc-form').hidden = true; });
   $('#sc-today').addEventListener('click', function () { sc.start = weekStart(lastToday || new Date().toISOString().slice(0, 10)); loadSchedule(); });
@@ -643,16 +681,10 @@
   $('#sc-next').addEventListener('click', function () { sc.start = addDays(sc.start, 7); loadSchedule(); });
   $('#sc-form').addEventListener('submit', function (e) {
     e.preventDefault();
-    var date = $('#sc-date').value, all = $('#sc-allday').checked, weeks = Number($('#sc-weeks').value);
-    var start = $('#sc-start').value, end = $('#sc-end').value, last = $('#sc-last').value || date;
-    if (!date || (!all && (!start || !end || end <= start)) || (all && last < date)) { $('#sc-error').textContent = T(all ? 'av.rangeErr' : 'hb.err'); return; }
-    var add = [];
-    for (var w = 0; w < weeks; w++) {
-      if (all) { for (var dd = date; dd <= last && add.length < 500; dd = addDays(dd, 1)) add.push({ date: addDays(dd, w * 7), allDay: true }); }
-      else add.push({ date: addDays(date, w * 7), start: start, end: end });
-    }
+    var add = blockItems();
+    if (!add || !add.length) { $('#sc-error').textContent = T('sc.formErr'); return; }
     $('#sc-form').hidden = true;
-    sc.start = weekStart(date);
+    sc.start = weekStart($('#sc-date').value);
     sendBlocks({ add: add }, T('sc.added', add.length));
   });
   $('#sc-grid').addEventListener('click', function (e) {

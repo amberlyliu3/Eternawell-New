@@ -230,3 +230,13 @@ main { padding: 28px max(16px, 3vw) 64px; }
 .g-kinds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: -2px 0 0 26px; padding: 0; border: 0; font-size: 14px; }
 .g-kinds legend { float: left; padding: 0; margin-right: 4px; color: var(--ink-2); }
 .g-kinds:disabled { opacity: 0.45; }
+
+/* Block time form: Starts [date] [time] – [time] Ends [date] */
+.sc-when { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.sc-when .field { min-width: 0; }
+.sc-when input[type="date"] { width: 170px; }
+.sc-when input[type="time"] { width: 130px; }
+.sc-dash { padding-bottom: 10px; color: var(--ink-3); }
+.sc-repeat { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.sc-repeat select { min-width: 260px; }
+.sc-summary:empty { display: none; }
