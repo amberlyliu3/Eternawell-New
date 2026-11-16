@@ -350,42 +350,67 @@ export class Store extends DurableObject {
     this.sql.exec("INSERT INTO kv (k, v) VALUES ('google_status', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", JSON.stringify({ ok, message: String(message || '').slice(0, 300), at: Date.now() }));
   }
 
-  // Busy times on the connected calendars between two dates, as wall-clock minute ranges
-  // [start, end, calendar name]. Cached for a minute.
+  // Times taken up on the connected calendars between two dates, as wall-clock minute ranges
+  // [start, end, calendar name]. Every event counts, whether it's marked Busy or Free in Google, and all-day
+  // events block the whole day; cancelled events and ones the doctor declined don't. Cached for a minute.
   async googleBusy(settings, from, to, fresh = false) {
     const cals = settings.google.calendars.filter((c) => c.busy);
     if (!cals.length || !serviceAccount(this.env)) return [];
     const key = `${cals.map((c) => c.id).join(',')}|${from}|${to}`;
     const hit = this.busyCache.get(key);
     if (!fresh && hit && Date.now() - hit.at < 60e3) return hit.ranges;
+    // a day either side covers the time-zone offset; ranges are filtered by date in slots()
+    const timeMin = new Date((dayNum(from) - 1) * 864e5).toISOString();
+    const timeMax = new Date((dayNum(to) + 2) * 864e5).toISOString();
+    const failed = [];
+    const results = await Promise.all(cals.map((c) => this.calendarRanges(c, timeMin, timeMax).catch((err) => {
+      failed.push(`${c.label || c.id} (${err.status === 404 ? 'notFound' : err.message})`);
+      return null;
+    })));
+    if (failed.length) this.noteGoogle(false, `Google can't read busy times for: ${failed.join(', ')}. Check each calendar is shared with the service account.`);
+    if (results.every((r) => r === null) && hit) return hit.ranges; // if Google is unreachable, keep what we had
+    const ranges = [].concat(...results.filter(Boolean));
+    this.busyCache.set(key, { at: Date.now(), ranges });
+    if (this.busyCache.size > 50) this.busyCache.delete(this.busyCache.keys().next().value);
+    return ranges;
+  }
+
+  // One calendar's events as minute ranges. Falls back to Google's free/busy lookup (Busy events only)
+  // when the calendar is shared as "See only free/busy", which doesn't allow reading events.
+  async calendarRanges(c, timeMin, timeMax) {
+    const name = c.label || c.id;
+    const toRange = (start, end) => {
+      if (start.date) return [absMin(start.date, 0), absMin(end.date || start.date, 0) + (end.date ? 0 : 1440), name]; // all-day: whole days
+      const a = laParts(Date.parse(start.dateTime));
+      const b = laParts(Date.parse(end.dateTime));
+      return [absMin(a.date, a.min), absMin(b.date, b.min), name];
+    };
     try {
-      // a day either side covers the time-zone offset; ranges are filtered by date in slots()
-      const d = await gcal(this.env, 'POST', '/freeBusy', {
-        timeMin: new Date((dayNum(from) - 1) * 864e5).toISOString(),
-        timeMax: new Date((dayNum(to) + 2) * 864e5).toISOString(),
-        timeZone: TZ,
-        items: cals.map((c) => ({ id: c.id })),
-      });
-      const ranges = [];
-      const failed = [];
-      for (const c of cals) {
-        const cal = (d.calendars || {})[c.id] || {};
-        if (cal.errors && cal.errors.length) { failed.push(`${c.label || c.id} (${cal.errors[0].reason})`); continue; }
-        for (const x of cal.busy || []) {
-          const a = laParts(Date.parse(x.start));
-          const b = laParts(Date.parse(x.end));
-          ranges.push([absMin(a.date, a.min), absMin(b.date, b.min), c.label || c.id]);
+      const out = [];
+      let pageToken = '';
+      for (let page = 0; page < 5; page++) {
+        const q = new URLSearchParams({ timeMin, timeMax, singleEvents: 'true', maxResults: '2500', fields: 'nextPageToken,items(status,start,end,attendees(self,responseStatus))' });
+        if (pageToken) q.set('pageToken', pageToken);
+        const d = await gcal(this.env, 'GET', `${calPath(c.id)}/events?${q}`);
+        for (const ev of d.items || []) {
+          if (ev.status === 'cancelled' || !ev.start || !ev.end) continue;
+          const me = (ev.attendees || []).find((x) => x.self);
+          if (me && me.responseStatus === 'declined') continue;
+          out.push(toRange(ev.start, ev.end));
         }
+        if (!d.nextPageToken) break;
+        pageToken = d.nextPageToken;
       }
-      if (failed.length) this.noteGoogle(false, `Google can't read busy times for: ${failed.join(', ')}. Check each calendar is shared with the service account.`);
-      this.busyCache.set(key, { at: Date.now(), ranges });
-      if (this.busyCache.size > 50) this.busyCache.delete(this.busyCache.keys().next().value);
-      return ranges;
+      return out;
     } catch (err) {
-      this.noteGoogle(false, err.message);
-      return hit ? hit.ranges : []; // if Google is unreachable, keep booking open
+      if (err.status !== 403 && err.status !== 404) throw err;
+      const d = await gcal(this.env, 'POST', '/freeBusy', { timeMin, timeMax, timeZone: TZ, items: [{ id: c.id }] });
+      const cal = (d.calendars || {})[c.id] || {};
+      if (cal.errors && cal.errors.length) { const e = new Error(cal.errors[0].reason); e.status = cal.errors[0].reason === 'notFound' ? 404 : 403; throw e; }
+      return (cal.busy || []).map((x) => toRange({ dateTime: x.start }, { dateTime: x.end }));
     }
   }
+
 
   // Adds, or (when status isn't confirmed) removes, a booking's calendar event. Never throws.
   async syncEvent(id, origin) {
