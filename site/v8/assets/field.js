@@ -6,6 +6,7 @@ import * as THREE from 'three';
 const canvas = document.getElementById('field');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const small = matchMedia('(max-width: 860px)');
+const phone = matchMedia('(max-width: 640px)'); // the shape sits above the headline, then fades as you scroll
 
 if (canvas) {
   try {
@@ -222,9 +223,9 @@ function start() {
     material.uniforms.uTime.value = t;
 
     // Inner pages: the field steps back once you scroll into the content
-    const baseAlpha = small.matches ? 0.5 : 0.9;
-    const recede = scrollMode ? 0 : Math.min(window.scrollY / (window.innerHeight * 0.9), 1);
-    material.uniforms.uAlpha.value = baseAlpha * (1 - 0.6 * recede);
+    const baseAlpha = phone.matches ? 0.85 : small.matches ? 0.5 : 0.9;
+    const recede = scrollMode && !phone.matches ? 0 : Math.min(window.scrollY / (window.innerHeight * (phone.matches ? 0.55 : 0.9)), 1);
+    material.uniforms.uAlpha.value = baseAlpha * (1 - (phone.matches ? 0.95 : 0.6) * recede);
 
     pointer.x += (pointer.tx - pointer.x) * 0.05;
     pointer.y += (pointer.ty - pointer.y) * 0.05;
@@ -232,10 +233,11 @@ function start() {
     const halfW = Math.tan(THREE.MathUtils.degToRad(20)) * camera.position.z * camera.aspect;
     const sx = small.matches ? 0 : Math.min(2.5, halfW * 0.5);
     field.position.x = (scrollMode ? sideAt(morph) : pageSide) * sx;
-    field.position.y = small.matches ? 0.6 : 0;
+    const halfH = Math.tan(THREE.MathUtils.degToRad(20)) * camera.position.z;
+    field.position.y = phone.matches ? halfH * 0.47 : small.matches ? 0.6 : 0;
     // On narrow (portrait) screens, shrink the shapes so the widest one (about 2.4 units) fits the width
     const fit = Math.min(1, (halfW * 0.9) / 2.4);
-    field.scale.setScalar(small.matches ? Math.min(0.8, fit) : (scrollMode ? 1 : 0.9) * Math.max(fit, 0.75));
+    field.scale.setScalar(phone.matches ? Math.min(0.8, fit) * 0.85 : small.matches ? Math.min(0.8, fit) : (scrollMode ? 1 : 0.9) * Math.max(fit, 0.75));
     field.rotation.y = t * 0.07 + pointer.x * 0.2;
     field.rotation.x = pointer.y * 0.12;
 

@@ -7,6 +7,7 @@
   var btn = nav && nav.querySelector('.menu-btn');
   function setOpen(open) {
     nav.classList.toggle('open', open);
+    document.body.classList.toggle('menu-open', open);
     btn.setAttribute('aria-expanded', String(open));
     btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
   }

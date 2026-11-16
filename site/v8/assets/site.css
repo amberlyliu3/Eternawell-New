@@ -556,3 +556,137 @@ footer { border-top: 1px solid var(--line); background: var(--deep); overflow: h
 :lang(zh) .nav-links a[aria-current="page"] { font-style: normal; }
 a[href^="tel:"], a[href^="sms:"] { white-space: nowrap; }
 .foot ul.links a[href*="google.com/maps"] { display: inline-block; }
+
+/* ======================================================================
+   Phones (640px and below): a layout designed for phones, not a shrunk laptop page.
+   Phone-sized type, sections that flow edge to edge, full-width photos and buttons,
+   the 3D shape above the headline, and a Call / Text / Book bar at the bottom.
+   ====================================================================== */
+.m-bar { display: none; }
+@media (max-width: 640px) {
+  body { font-size: 16px; line-height: 1.6; padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Type */
+  h1 { font-size: 40px; line-height: 1.05; letter-spacing: -0.025em; margin-bottom: 16px; }
+  .page-hero h1, .faq-intro h1, .legal h1 { font-size: 36px !important; }
+  .home .hero h1 { font-size: 46px; line-height: 1; }
+  h2 { font-size: 30px; line-height: 1.12; letter-spacing: -0.015em; margin-bottom: 14px; }
+  h3 { font-size: 23px; }
+  .lede { font-size: 17px; line-height: 1.6; }
+  .eyebrow { margin-bottom: 12px; font-size: 11px; letter-spacing: 0.16em; }
+  .meta { font-size: 13px; }
+
+  /* Rhythm */
+  .section { padding-block: 52px; }
+  .section.tight { padding-top: 0; }
+  .section-head { margin-bottom: 24px; }
+  .split { gap: 28px; }
+  .actions { margin-top: 24px; gap: 14px 24px; }
+  .actions .btn { width: 100%; justify-content: center; }
+  .btn { height: 52px; padding: 0 22px; }
+  .quiet-line { margin-top: 24px; padding-top: 14px; font-size: 13px; }
+
+  /* Header: logo, language and menu. Book Now lives in the bottom bar. */
+  .nav .wrap { height: 60px; }
+  .nav .nav-cta { display: none; }
+  .nav-links { height: calc(100svh - 60px); overflow-y: auto; padding-bottom: 32px; }
+  .nav-links a { padding: 14px 2px; font-size: 26px; }
+
+  /* Bottom action bar */
+  .m-bar {
+    position: fixed; z-index: 45; left: 0; right: 0; bottom: 0;
+    display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 8px; align-items: center;
+    padding: 10px max(12px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+    background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+  }
+  .menu-open .m-bar { display: none; }
+  .m-bar-icon {
+    display: grid; justify-items: center; gap: 1px; min-width: 56px; height: 52px; padding: 7px 6px 0;
+    border: 1px solid rgba(23, 22, 20, 0.3); border-radius: 4px; text-decoration: none; color: var(--ink); font-size: 12px; font-weight: 600;
+  }
+  .m-bar-icon svg { width: 20px; height: 20px; color: var(--em); }
+  .m-bar .m-bar-book { width: 100%; height: 52px; justify-content: center; padding: 0 12px; font-size: 15px; }
+
+  /* Page heroes: text first, then an edge-to-edge photo */
+  .page-hero .wrap { gap: 28px; padding-block: 32px 0; align-items: start; }
+  .page-hero .ph { width: calc(100% + 40px); max-width: none; margin-inline: -20px; aspect-ratio: 4 / 3; }
+  .page-hero + .section, .page-hero + .section.tight { padding-top: 44px; }
+  .bleed { padding-inline: 0; }
+  .section .split > .ph.r-4x5 { aspect-ratio: 4 / 3; }
+  .split > div > h2:last-child { margin-bottom: 0; }
+  .bleed .ph { aspect-ratio: 4 / 3; }
+  .ph::after { inset: 10px; }
+
+  /* Home: the shape fills the top of the screen above the headline; later sections flow normally */
+  .scene .wrap { min-height: 0; padding-block: 0 44px; gap: 0; }
+  .scene.hero .wrap { min-height: 0; padding-top: 37svh; padding-bottom: 40px; align-items: start; }
+  .scene:not(.hero) .content { background: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 16px 0 0; border: 0; }
+  .hairlist { margin-top: 24px !important; }
+  .hairlist li { grid-template-columns: 32px minmax(0, 1fr); gap: 12px; padding: 15px 0; }
+  .hairlist .num { font-size: 16px; }
+  .index { margin-top: 20px; }
+  .index a { grid-template-columns: 30px minmax(0, 1fr) auto; padding: 16px 0; }
+  .index b { font-size: 21px; }
+  .quote { font-size: 26px; line-height: 1.3; }
+  .quote-cite { margin-top: 18px; font-size: 12px; }
+  .home .bleed { padding-block: 8px 0 !important; }
+
+  /* Numbered steps: number beside the text */
+  .big-steps { gap: 0; }
+  .big-steps li { display: grid; grid-template-columns: 50px minmax(0, 1fr); column-gap: 12px; padding: 20px 0; }
+  .big-steps .n { grid-row: span 2; margin: 0; font-size: 34px; line-height: 1; }
+  .big-steps b { margin-bottom: 4px; font-size: 21px; }
+  .big-steps .d { font-size: 15px; }
+
+  /* Services */
+  .svc-row { gap: 4px; padding: 30px 0; }
+  .svc-row .num { font-size: 14px; }
+  .svc-row h3 { font-size: 29px; }
+  .svc-row .meta { margin-top: 8px; }
+  .svc-photo { margin: 18px 0 10px; aspect-ratio: 16 / 10; }
+  .conds li { padding: 10px 0; font-size: 15px; }
+  .conds.tags li { padding: 5px 12px; font-size: 14px; }
+
+  /* About, membership, products */
+  .creds { margin-top: 24px; }
+  .creds div { padding-block: 12px; }
+  .profile-body blockquote { margin-top: 24px; font-size: 19px; }
+  .features li, .perks li { padding: 15px 0; font-size: 15px; }
+  .product { padding-block: 32px; }
+  .note-c p { font-size: 18px; }
+
+  /* FAQ */
+  .faq-layout { gap: 28px; padding-block: 32px 48px; }
+  .faq-intro .ask { margin-top: 20px; padding-top: 16px; }
+  .faq-group + .faq-group { margin-top: 36px; }
+  .faq summary { gap: 16px; padding: 17px 0; font-size: 19px; }
+  .faq p { padding-bottom: 18px; font-size: 15px; }
+
+  /* Book */
+  .booking { margin-inline: -20px; border-inline: 0; }
+  .bk-col { padding: 24px 20px; gap: 30px; }
+  .bk-step legend { font-size: 23px; }
+  .bk-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .options > div { padding: 22px 0; }
+  .options .big { font-size: 26px; }
+
+  /* Call-to-action panel becomes a full-width band */
+  .cta-sec .wrap { padding: 0; }
+  .cta { gap: 28px; padding: 44px 20px; border: 0; border-radius: 0; background: var(--deep); }
+  .cta.solo { text-align: left; justify-items: start; }
+  .cta.solo .actions { justify-content: flex-start; }
+
+  /* Legal */
+  .legal section { padding-block: 26px; }
+  .legal-toc { gap: 6px 16px; font-size: 14px; }
+
+  /* Footer */
+  .foot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px 20px; padding-block: 44px 28px; }
+  .foot > div:first-child { grid-column: 1 / -1; }
+  .foot ul.links { gap: 10px; font-size: 15px; }
+  .msg { margin-top: 20px; }
+  .msg .btn { width: 100%; justify-content: center; }
+  .legal-row { flex-direction: column; gap: 10px; font-size: 13px; }
+  .legal-row nav { gap: 6px 16px; }
+}
