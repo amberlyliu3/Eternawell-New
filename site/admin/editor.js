@@ -1,6 +1,8 @@
 // In-page editor. The Worker adds this script to a v8 page only for a signed-in admin
 // opening the page with ?edit=1 (inside the admin's "Edit website" tab).
 (function () {
+  var I = window.EW_I18N || { t: function (k) { return k; } };
+  var T = I.t;
   var html = document.documentElement;
   html.classList.add('ew-editing');
   document.querySelectorAll('[data-reveal]').forEach(function (el) { el.classList.add('in'); });
@@ -12,7 +14,7 @@
   function notify(msg) {
     if (top) top.postMessage(msg, location.origin);
     var bar = document.querySelector('.ew-bar-count');
-    if (bar && msg.type === 'ew-dirty') bar.textContent = msg.count ? msg.count + ' unsaved' : 'No changes';
+    if (bar && msg.type === 'ew-dirty') bar.textContent = msg.count ? T('ed.n', msg.count) : T('ed.none');
   }
   function report() { notify({ type: 'ew-dirty', count: changed.size }); }
 
@@ -55,9 +57,9 @@
         c.height = Math.round(img.naturalHeight * scale);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(img.src);
-        c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not read that image.')); }, 'image/jpeg', 0.84);
+        c.toBlob(function (b) { b ? resolve(b) : reject(new Error(T('ed.badImage'))); }, 'image/jpeg', 0.84);
       };
-      img.onerror = function () { reject(new Error('Could not read that image. Please use a JPEG or PNG photo.')); };
+      img.onerror = function () { reject(new Error(T('ed.badImage'))); };
       img.src = URL.createObjectURL(file);
     });
   }
@@ -67,12 +69,12 @@
     var fig = el.tagName === 'IMG' ? el.closest('figure') : el;
     if (!fig) return;
     var label = (fig.querySelector('.ph-label') || {}).textContent || '';
-    var alt = label.replace(/^(Photography|Portrait|Photo)\s*·\s*/i, '').replace(/\(photo to come\)/i, '').trim();
+    var alt = label.replace(/^(Photography|Portrait|Photo|照片|肖像)\s*·\s*/i, '').replace(/\(photo to come\)|（照片待补充）/i, '').trim();
     fig.classList.add('ew-img');
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'ew-img-btn';
-    btn.textContent = fig.querySelector('img') ? 'Replace photo' : 'Add photo';
+    btn.textContent = T(fig.querySelector('img') ? 'ed.replace' : 'ed.addPhoto');
     var input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/jpeg,image/png,image/webp';
@@ -82,11 +84,11 @@
     input.addEventListener('change', function () {
       var file = input.files[0];
       if (!file) return;
-      btn.textContent = 'Uploading…';
+      btn.textContent = T('ed.uploading');
       btn.disabled = true;
       resize(file).then(function (blob) {
         return fetch('/api/admin/media', { method: 'POST', headers: { 'content-type': 'image/jpeg' }, body: blob });
-      }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Upload failed.'); return d; }); })
+      }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || T('ed.uploadFail')); return d; }); })
         .then(function (d) {
           var img = fig.querySelector('img');
           if (!img) { img = document.createElement('img'); img.loading = 'lazy'; fig.prepend(img); }
@@ -95,10 +97,10 @@
           img.alt = alt;
           changed.set(key, { src: d.url, alt: alt });
           fig.classList.add('ew-changed');
-          btn.textContent = 'Replace photo';
+          btn.textContent = T('ed.replace');
           report();
         })
-        .catch(function (err) { notify({ type: 'ew-error', message: err.message }); btn.textContent = 'Replace photo'; })
+        .catch(function (err) { notify({ type: 'ew-error', message: err.message }); btn.textContent = T(fig.querySelector('img') ? 'ed.replace' : 'ed.addPhoto'); })
         .then(function () { btn.disabled = false; input.value = ''; });
     });
   });
@@ -109,7 +111,7 @@
     var changes = {};
     changed.forEach(function (v, k) { changes[k] = v; });
     fetch('/api/admin/content', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ changes: changes }) })
-      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Could not save.'); return d; }); })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || T('ed.saveFail')); return d; }); })
       .then(function () {
         changed.forEach(function (v, k) { if (typeof v === 'string') original.set(k, v); });
         changed.clear();
@@ -128,7 +130,7 @@
   if (!top) {
     var bar = document.createElement('div');
     bar.className = 'ew-bar';
-    bar.innerHTML = '<span>Editing mode</span><span class="ew-bar-count">No changes</span><button type="button">Save</button>';
+    bar.innerHTML = '<span>' + T('ed.mode') + '</span><span class="ew-bar-count">' + T('ed.none') + '</span><button type="button">' + T('ed.save') + '</button>';
     bar.querySelector('button').addEventListener('click', save);
     document.body.append(bar);
   }

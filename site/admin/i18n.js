@@ -1,0 +1,203 @@
+// Admin interface text in English and Chinese. The choice is remembered in this browser (localStorage).
+// Used by admin.js and by the in-page editor (editor.js).
+(function () {
+  var KEY = 'ew_admin_lang';
+  var S = {
+    en: {
+      'skip': 'Skip to content',
+      'lang.btn': '中文', 'lang.aria': '切换到中文 (Switch the admin to Chinese)',
+      'login.title': 'Admin sign in', 'login.password': 'Password', 'login.submit': 'Sign in', 'login.back': 'Back to the website',
+      'setup.title': "Admin isn't set up yet",
+      'setup.body': 'Add a secret called <code>ADMIN_PASSWORD</code> to this Worker in the Cloudflare dashboard (Workers &amp; Pages → eternawell-new → Settings → Variables and Secrets), then reload this page.',
+      'brand.admin': 'Admin', 'nav.aria': 'Admin sections',
+      'tab.bookings': 'Bookings', 'tab.messages': 'Messages', 'tab.website': 'Edit website', 'tab.availability': 'Availability', 'tab.clinic': 'Clinic details',
+      'top.view': 'View site', 'top.newtab': ' (opens in a new tab)', 'top.logout': 'Sign out',
+      'show': 'Show',
+      'view.upcoming': 'Upcoming', 'view.past': 'Past', 'view.cancelled': 'Cancelled', 'view.all': 'All',
+      'bk.export': 'Download CSV', 'bk.add': 'Add booking', 'bk.addTitle': 'Add a booking',
+      'bk.addHint': 'For visits booked by phone or text. Any time is allowed here, even outside your open hours.',
+      'f.date': 'Date', 'f.time': 'Time', 'f.type': 'Visit type', 'f.mode': 'Visit', 'mode.in': 'In person', 'mode.tele': 'Telemedicine',
+      'f.name': 'Patient name', 'f.phone': 'Phone', 'f.email': 'Email (optional)', 'f.note': 'Note (optional, no medical details)',
+      'bk.save': 'Save booking', 'cancel': 'Cancel',
+      'bk.empty.upcoming': 'No upcoming bookings.', 'bk.empty.past': 'No past bookings.', 'bk.empty.cancelled': 'No cancelled bookings.', 'bk.empty.all': 'No bookings yet.',
+      'bk.today': 'Today · ', 'bk.min': '{0} min', 'bk.byAdmin': ' · added by admin', 'bk.noteFor': 'Note for {0}', 'bk.notePh': 'Add a note (no medical details)',
+      'st.confirmed': 'Confirmed', 'st.completed': 'Visited', 'st.cancelled': 'Cancelled',
+      'act.visited': 'Mark visited', 'act.cancel': 'Cancel', 'act.restore': 'Restore', 'act.delete': 'Delete', 'sure.delete': 'Delete for good?', 'sure.cancel': 'Yes, cancel',
+      'bk.deleted': 'Booking deleted.', 'bk.updated': 'Booking updated.', 'bk.noteSaved': 'Note saved.', 'bk.added': 'Booking added.',
+      'csv': ['Date', 'Time', 'Minutes', 'Visit type', 'Visit', 'Name', 'Phone', 'Email', 'Status', 'Note', 'Booked'],
+      'msg.title': 'Messages', 'msg.unreadView': 'Unread', 'msg.readView': 'Read',
+      'msg.hint': 'Messages patients send from the "Send the doctor a message" box at the bottom of every page. Reply by phone or email.',
+      'msg.unread': '{0} unread', 'msg.new': 'New', 'msg.markRead': 'Mark as read', 'msg.markUnread': 'Mark as unread',
+      'msg.emptyNew': 'No messages waiting.', 'msg.empty': 'No messages yet.',
+      'web.title': 'Edit website', 'web.siteLang': 'Website language', 'web.page': 'Page', 'web.discard': 'Discard changes', 'web.save': 'Save changes', 'web.saveN': 'Save changes ({0})',
+      'web.hint': 'Choose the website language and a page. Click any text on the page to change it, then press <b>Save changes</b>. Click a photo to replace it. Highlighted <span class="todo-sample">[brackets]</span> are blanks still to fill in. Text in the footer and the "Book" box at the bottom is shared by every page of that language. The English and Chinese websites are edited separately.',
+      'web.frame': 'Website page in editing mode', 'web.unsaved': 'You have unsaved changes on this page. Save or discard them first.',
+      'web.saved': 'Saved. The live website is updated.', 'web.edited': 'Edited items',
+      'web.editedHint': "Everything you've changed from the original website. Restore an item to bring back the original text or photo.",
+      'web.photo': 'Photo', 'web.everyPage': 'Every page', 'web.restore': 'Restore original', 'web.restoreSure': 'Restore it?', 'web.restored': 'Original restored.', 'web.nothing': 'Nothing edited yet.',
+      'lang.en': 'English', 'lang.zh': 'Chinese',
+      'page.home': 'Home', 'page.services': 'Services', 'page.about': 'Meet the Doctor', 'page.membership': 'Membership', 'page.products': 'Products', 'page.faq': 'FAQ', 'page.book': 'Book', 'page.legal': 'Privacy & policies',
+      'av.title': 'Availability', 'av.save': 'Save availability',
+      'av.blocked': 'Blocked days', 'av.blockedHint': "Click a day to block it, for example your EZCall work days, holidays or time off. Patients can't book blocked days. Click again to unblock.",
+      'av.from': 'Block from', 'av.to': 'to', 'av.range': 'Block range', 'av.every': 'Block every', 'av.forNext': 'for the next',
+      'av.w4': '4 weeks', 'av.w8': '8 weeks', 'av.m3': '3 months', 'av.m6': '6 months', 'av.repeat': 'Block these days',
+      'days': ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], 'dows': ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+      'av.opens': '{0} opens', 'av.closes': '{0} closes', 'av.toWord': 'to',
+      'av.prev': 'Previous month', 'av.next': 'Next month', 'av.open': 'Open', 'av.isBlocked': 'Blocked', 'av.closedWeekly': 'Closed every week',
+      'av.ariaBlocked': ', blocked', 'av.ariaClosed': ', closed every week', 'av.ariaOpen': ', open',
+      'av.unsaved': 'Unsaved: press Save availability.', 'av.nBlocked': '{0} days blocked. Press Save availability to keep them.', 'av.rangeErr': 'Choose a start and end date.',
+      'av.saved': 'Availability saved. Online booking now uses these settings.',
+      'av.hours': 'Weekly hours', 'av.hoursHint': 'Pacific Time. Untick a day to close it every week.',
+      'av.types': 'Visit types', 'av.typesHint': 'What patients can book online, and how long each takes.', 'av.addType': 'Add visit type',
+      'ty.name': 'Name (English)', 'ty.nameZh': 'Name (Chinese)', 'ty.minutes': 'Minutes', 'ty.active': 'Bookable online', 'ty.remove': 'Remove', 'ty.new': 'New visit type',
+      'av.rules': 'Booking rules', 'av.step': 'Start times every (minutes)', 'av.buffer': 'Gap between visits (minutes)', 'av.notice': 'Minimum notice (hours)',
+      'av.ahead': 'Book up to (days ahead)', 'av.retention': 'Delete past and cancelled bookings after (days)',
+      'g.title': 'Google Calendar', 'g.hint': "Put each booking on the doctor's Google Calendar automatically, and optionally hide times when that calendar is busy (for example EZCall shifts).",
+      'g.shareHint': 'In Google Calendar, share the calendar with this address and choose <b>Make changes to events</b>:', 'g.copy': 'Copy', 'g.copied': 'Copied.',
+      'g.calLabel': 'Calendar ID (Google Calendar → Settings → your calendar → Integrate calendar)', 'g.calPh': 'name@gmail.com or …@group.calendar.google.com',
+      'g.add': 'Add each booking to this calendar', 'g.busy': 'Hide times when this calendar is busy', 'g.detail': 'What the calendar event shows',
+      'g.minimal': 'Visit type, initials and in person / telemedicine (recommended)', 'g.full': "Patient's full name, phone and email",
+      'g.hipaa': 'Use "full" only if the doctor\'s Google account is covered by a HIPAA agreement (Google Workspace with Google\'s BAA).',
+      'g.test': 'Test connection', 'g.sync': 'Add upcoming bookings to calendar', 'g.saveNote': 'Press <b>Save availability</b> to keep changes to these settings.',
+      'g.noKey': "Not set up: the service account key hasn't been added to Cloudflare yet (secret GOOGLE_SERVICE_ACCOUNT_KEY).",
+      'g.noCal': 'Key added. Enter the calendar ID below, then test the connection.', 'g.problemAt': 'Problem: {0} ({1})', 'g.problem': 'Problem: {0}', 'g.connected': 'Connected',
+      'g.testing': 'Testing…', 'g.saveFirst': 'Press Save availability first, then add the bookings.', 'g.adding': 'Adding bookings…', 'g.synced': '{0} upcoming bookings are on the calendar.',
+      'cl.title': 'Clinic details', 'cl.hint': 'Shown in the footer, on the Book page and anywhere the website lists your phone number or address.',
+      'cl.phone': 'Phone', 'cl.a1': 'Address line 1', 'cl.a2': 'City, state and ZIP', 'cl.save': 'Save clinic details', 'cl.saved': 'Saved. The website shows the new details within a few seconds.',
+      'err.signin': 'Please sign in again.', 'err.generic': 'Something went wrong.', 'err.noPassword': 'The admin password has not been set up yet.',
+      'ed.replace': 'Replace photo', 'ed.addPhoto': 'Add photo', 'ed.uploading': 'Uploading…', 'ed.mode': 'Editing mode', 'ed.none': 'No changes', 'ed.n': '{0} unsaved', 'ed.save': 'Save',
+      'ed.badImage': 'Could not read that image. Please use a JPEG or PNG photo.', 'ed.uploadFail': 'Upload failed.', 'ed.saveFail': 'Could not save.',
+      locale: 'en-US',
+    },
+    zh: {
+      'skip': '跳到正文',
+      'lang.btn': 'EN', 'lang.aria': 'Switch the admin to English（切换到英文）',
+      'login.title': '管理后台登录', 'login.password': '密码', 'login.submit': '登录', 'login.back': '返回网站',
+      'setup.title': '管理后台尚未设置',
+      'setup.body': '请在 Cloudflare 控制台中为此 Worker 添加名为 <code>ADMIN_PASSWORD</code> 的密钥（Workers &amp; Pages → eternawell-new → Settings → Variables and Secrets），然后重新加载此页面。',
+      'brand.admin': '管理后台', 'nav.aria': '后台栏目',
+      'tab.bookings': '预约', 'tab.messages': '留言', 'tab.website': '编辑网站', 'tab.availability': '可预约时间', 'tab.clinic': '诊所信息',
+      'top.view': '查看网站', 'top.newtab': '（在新标签页打开）', 'top.logout': '退出登录',
+      'show': '显示',
+      'view.upcoming': '即将到来', 'view.past': '过去', 'view.cancelled': '已取消', 'view.all': '全部',
+      'bk.export': '下载 CSV', 'bk.add': '添加预约', 'bk.addTitle': '添加预约',
+      'bk.addHint': '用于通过电话或短信预约的就诊。这里可以选择任何时间，包括营业时间以外。',
+      'f.date': '日期', 'f.time': '时间', 'f.type': '就诊类型', 'f.mode': '就诊方式', 'mode.in': '到诊', 'mode.tele': '远程视频',
+      'f.name': '患者姓名', 'f.phone': '电话', 'f.email': '电子邮箱（选填）', 'f.note': '备注（选填，请勿填写病情）',
+      'bk.save': '保存预约', 'cancel': '取消',
+      'bk.empty.upcoming': '暂无即将到来的预约。', 'bk.empty.past': '暂无过去的预约。', 'bk.empty.cancelled': '暂无已取消的预约。', 'bk.empty.all': '还没有预约。',
+      'bk.today': '今天 · ', 'bk.min': '{0} 分钟', 'bk.byAdmin': ' · 管理员添加', 'bk.noteFor': '{0} 的备注', 'bk.notePh': '添加备注（请勿填写病情）',
+      'st.confirmed': '已确认', 'st.completed': '已就诊', 'st.cancelled': '已取消',
+      'act.visited': '标记为已就诊', 'act.cancel': '取消预约', 'act.restore': '恢复', 'act.delete': '删除', 'sure.delete': '确定永久删除？', 'sure.cancel': '确定取消',
+      'bk.deleted': '预约已删除。', 'bk.updated': '预约已更新。', 'bk.noteSaved': '备注已保存。', 'bk.added': '预约已添加。',
+      'csv': ['日期', '时间', '分钟', '就诊类型', '就诊方式', '姓名', '电话', '电子邮箱', '状态', '备注', '预约时间'],
+      'msg.title': '留言', 'msg.unreadView': '未读', 'msg.readView': '已读',
+      'msg.hint': '患者通过每个页面底部的“给医生留言”表格发送的留言。请通过电话或电子邮件回复。',
+      'msg.unread': '{0} 条未读', 'msg.new': '新', 'msg.markRead': '标为已读', 'msg.markUnread': '标为未读',
+      'msg.emptyNew': '没有未读留言。', 'msg.empty': '还没有留言。',
+      'web.title': '编辑网站', 'web.siteLang': '网站语言', 'web.page': '页面', 'web.discard': '放弃更改', 'web.save': '保存更改', 'web.saveN': '保存更改（{0}）',
+      'web.hint': '先选择网站语言和页面。点击页面上的任何文字即可修改，然后点击<b>保存更改</b>。点击照片可以更换。高亮显示的<span class="todo-sample">[方括号]</span>是尚待填写的内容。页脚和底部“预约”框中的文字由该语言的所有页面共用。英文网站和中文网站需要分别编辑。',
+      'web.frame': '编辑模式下的网站页面', 'web.unsaved': '此页面有未保存的更改，请先保存或放弃。',
+      'web.saved': '已保存，网站已更新。', 'web.edited': '已编辑的内容',
+      'web.editedHint': '这里列出您对网站原有内容做过的所有修改。点击“恢复原文”可以恢复原来的文字或照片。',
+      'web.photo': '照片', 'web.everyPage': '所有页面', 'web.restore': '恢复原文', 'web.restoreSure': '确定恢复？', 'web.restored': '已恢复原文。', 'web.nothing': '还没有编辑过任何内容。',
+      'lang.en': '英文', 'lang.zh': '中文',
+      'page.home': '首页', 'page.services': '服务项目', 'page.about': '认识医生', 'page.membership': '会员', 'page.products': '产品', 'page.faq': '常见问题', 'page.book': '预约', 'page.legal': '隐私与政策',
+      'av.title': '可预约时间', 'av.save': '保存设置',
+      'av.blocked': '不可预约日期', 'av.blockedHint': '点击某一天即可屏蔽，例如您的 EZCall 工作日、节假日或休假。患者无法预约被屏蔽的日期。再次点击即可取消屏蔽。',
+      'av.from': '屏蔽日期从', 'av.to': '至', 'av.range': '屏蔽这段日期', 'av.every': '每逢', 'av.forNext': '持续',
+      'av.w4': '4 周', 'av.w8': '8 周', 'av.m3': '3 个月', 'av.m6': '6 个月', 'av.repeat': '屏蔽这些日期',
+      'days': ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'], 'dows': ['日', '一', '二', '三', '四', '五', '六'],
+      'av.opens': '{0}开始时间', 'av.closes': '{0}结束时间', 'av.toWord': '至',
+      'av.prev': '上个月', 'av.next': '下个月', 'av.open': '可预约', 'av.isBlocked': '已屏蔽', 'av.closedWeekly': '每周休息',
+      'av.ariaBlocked': '，已屏蔽', 'av.ariaClosed': '，每周休息', 'av.ariaOpen': '，可预约',
+      'av.unsaved': '未保存：请点击“保存设置”。', 'av.nBlocked': '已屏蔽 {0} 天，请点击“保存设置”保存。', 'av.rangeErr': '请选择开始和结束日期。',
+      'av.saved': '设置已保存，在线预约已使用新设置。',
+      'av.hours': '每周营业时间', 'av.hoursHint': '太平洋时间。取消勾选某一天，即表示每周这一天休息。',
+      'av.types': '就诊类型', 'av.typesHint': '患者可以在线预约的项目，以及每项所需时间。', 'av.addType': '添加就诊类型',
+      'ty.name': '名称（英文）', 'ty.nameZh': '名称（中文）', 'ty.minutes': '分钟', 'ty.active': '可在线预约', 'ty.remove': '删除', 'ty.new': 'New visit type',
+      'av.rules': '预约规则', 'av.step': '可预约时间间隔（分钟）', 'av.buffer': '两次就诊之间的间隔（分钟）', 'av.notice': '最少提前预约时间（小时）',
+      'av.ahead': '最多可提前预约天数', 'av.retention': '过去和已取消的预约保留天数',
+      'g.title': 'Google 日历', 'g.hint': '自动将每个预约添加到医生的 Google 日历，并可选择在日历忙碌时（例如 EZCall 值班）不开放预约。',
+      'g.shareHint': '请在 Google 日历中将日历共享给以下地址，并选择<b>更改活动</b>权限：', 'g.copy': '复制', 'g.copied': '已复制。',
+      'g.calLabel': '日历 ID（Google 日历 → 设置 → 您的日历 → 集成日历）', 'g.calPh': 'name@gmail.com 或 …@group.calendar.google.com',
+      'g.add': '将每个预约添加到此日历', 'g.busy': '此日历忙碌时不开放预约', 'g.detail': '日历活动显示的内容',
+      'g.minimal': '就诊类型、姓名缩写，以及到诊 / 远程视频（推荐）', 'g.full': '患者全名、电话和电子邮箱',
+      'g.hipaa': '只有在医生的 Google 账户受 HIPAA 协议保护时（已签署 Google BAA 的 Google Workspace），才使用“全名”选项。',
+      'g.test': '测试连接', 'g.sync': '将即将到来的预约添加到日历', 'g.saveNote': '修改这些设置后，请点击<b>保存设置</b>。',
+      'g.noKey': '尚未设置：服务账号密钥还没有添加到 Cloudflare（密钥名称 GOOGLE_SERVICE_ACCOUNT_KEY）。',
+      'g.noCal': '密钥已添加。请在下方填写日历 ID，然后测试连接。', 'g.problemAt': '出现问题：{0}（{1}）', 'g.problem': '出现问题：{0}', 'g.connected': '已连接',
+      'g.testing': '正在测试…', 'g.saveFirst': '请先点击“保存设置”，再添加预约。', 'g.adding': '正在添加预约…', 'g.synced': '{0} 个即将到来的预约已在日历上。',
+      'cl.title': '诊所信息', 'cl.hint': '显示在页脚、预约页面，以及网站上所有列出电话或地址的地方。',
+      'cl.phone': '电话', 'cl.a1': '地址第一行', 'cl.a2': '城市、州和邮编', 'cl.save': '保存诊所信息', 'cl.saved': '已保存，网站会在几秒内显示新信息。',
+      'err.signin': '请重新登录。', 'err.generic': '出了点问题。', 'err.noPassword': '管理密码尚未设置。',
+      'ed.replace': '更换照片', 'ed.addPhoto': '添加照片', 'ed.uploading': '正在上传…', 'ed.mode': '编辑模式', 'ed.none': '没有更改', 'ed.n': '{0} 处未保存', 'ed.save': '保存',
+      'ed.badImage': '无法读取该图片，请使用 JPEG 或 PNG 照片。', 'ed.uploadFail': '上传失败。', 'ed.saveFail': '无法保存。',
+      locale: 'zh-CN',
+    },
+  };
+
+  // Messages that come from the server in English
+  var SERVER_ZH = {
+    'That password is not correct.': '密码不正确。',
+    'Too many sign-in attempts. Please wait 15 minutes.': '登录尝试次数过多，请等待 15 分钟。',
+    'Please sign in.': '请登录。',
+    'Last calendar update worked.': '最近一次日历更新成功。',
+    'The service account key has not been added to Cloudflare yet.': '服务账号密钥还没有添加到 Cloudflare。',
+    'The Google service account key has not been added to Cloudflare yet (secret GOOGLE_SERVICE_ACCOUNT_KEY).': '服务账号密钥还没有添加到 Cloudflare（密钥名称 GOOGLE_SERVICE_ACCOUNT_KEY）。',
+    'Enter the calendar ID first.': '请先填写日历 ID。',
+    'Please choose a visit type.': '请选择就诊类型。',
+    'Please choose a date and time.': '请选择日期和时间。',
+    'Please choose in person or telemedicine.': '请选择到诊或远程视频就诊。',
+    'Please enter your name.': '请填写姓名。',
+    'Please enter a phone number we can reach you at.': '请填写可以联系到的电话号码。',
+    'Please check your email address.': '请检查电子邮箱地址。',
+    'Please upload a JPEG, PNG or WebP image.': '请上传 JPEG、PNG 或 WebP 图片。',
+    'That image is too large. Please use one under 1.9 MB.': '图片太大，请使用小于 1.9 MB 的图片。',
+    'Something went wrong. Please try again, or call or text us.': '出了点问题，请重试。',
+  };
+  var SERVER_ZH_PATTERNS = [
+    [/^Connected to "(.*)"\. Bookings can now be added to this calendar\.$/, '已连接到“$1”。现在可以将预约添加到此日历。'],
+    [/^Connected to "(.*)", but it's shared as "(.*)"\. Change the sharing permission to "Make changes to events"\.$/, '已连接到“$1”，但共享权限是“$2”。请将共享权限改为“更改活动”。'],
+    [/^Google can't find that calendar\. Check the calendar ID, and that the calendar is shared with (.*)\.$/, 'Google 找不到该日历。请检查日历 ID，并确认已将日历共享给 $1。'],
+    [/^Google Calendar refused the update \((.*)\)\..*$/, 'Google 日历拒绝了更新（$1）。请检查日历 ID，并确认日历已以“更改活动”权限共享给服务账号。'],
+    [/^Google rejected the service account key \((.*)\)\.$/, 'Google 拒绝了服务账号密钥（$1）。'],
+    [/^Google can't read this calendar's busy times \((.*)\)\..*$/, 'Google 无法读取此日历的忙碌时间（$1）。请确认日历已共享给服务账号。'],
+  ];
+
+  function get() {
+    try {
+      var v = localStorage.getItem(KEY);
+      if (v === 'en' || v === 'zh') return v;
+    } catch (e) { /* storage blocked */ }
+    return /^zh/i.test(navigator.language || '') ? 'zh' : 'en';
+  }
+
+  var I = {
+    lang: get(),
+    set: function (l) { I.lang = l; try { localStorage.setItem(KEY, l); } catch (e) { /* storage blocked */ } },
+    t: function (key) {
+      var v = (S[I.lang] && S[I.lang][key] !== undefined) ? S[I.lang][key] : S.en[key];
+      if (v === undefined) return key;
+      var args = arguments;
+      return typeof v === 'string' ? v.replace(/\{(\d)\}/g, function (_, n) { return args[Number(n) + 1]; }) : v;
+    },
+    // Translates a message the server sent in English
+    srv: function (msg) {
+      if (I.lang !== 'zh' || !msg) return msg;
+      if (SERVER_ZH[msg]) return SERVER_ZH[msg];
+      for (var i = 0; i < SERVER_ZH_PATTERNS.length; i++) if (SERVER_ZH_PATTERNS[i][0].test(msg)) return msg.replace(SERVER_ZH_PATTERNS[i][0], SERVER_ZH_PATTERNS[i][1]);
+      return msg;
+    },
+    // Fills elements marked data-i (text), data-i-html, data-i-ph (placeholder), data-i-aria and data-i-title
+    apply: function (root) {
+      root = root || document;
+      root.querySelectorAll('[data-i]').forEach(function (el) { el.textContent = I.t(el.getAttribute('data-i')); });
+      root.querySelectorAll('[data-i-html]').forEach(function (el) { el.innerHTML = I.t(el.getAttribute('data-i-html')); });
+      root.querySelectorAll('[data-i-ph]').forEach(function (el) { el.placeholder = I.t(el.getAttribute('data-i-ph')); });
+      root.querySelectorAll('[data-i-aria]').forEach(function (el) { el.setAttribute('aria-label', I.t(el.getAttribute('data-i-aria'))); });
+      root.querySelectorAll('[data-i-title]').forEach(function (el) { el.title = I.t(el.getAttribute('data-i-title')); });
+    },
+  };
+  window.EW_I18N = I;
+})();

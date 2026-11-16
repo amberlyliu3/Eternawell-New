@@ -10,45 +10,47 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..500&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/admin/admin.css">
+<script src="/admin/i18n.js"></script>
 </head>
 <body>
-<a class="skip" href="#main">Skip to content</a>
+<a class="skip" href="#main" data-i="skip">Skip to content</a>
 
 <!-- Sign in -->
 <main id="login" class="login" hidden>
   <form class="login-card" id="login-form">
-    <p class="brand">EternaWell<span>Medicine</span></p>
-    <h1>Admin sign in</h1>
-    <label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
+    <div class="login-top"><p class="brand">EternaWell<span>Medicine</span></p><button type="button" class="lang-toggle" data-i="lang.btn" data-i-aria="lang.aria">中文</button></div>
+    <h1 data-i="login.title">Admin sign in</h1>
+    <label class="field"><span data-i="login.password">Password</span><input type="password" name="password" autocomplete="current-password" required></label>
     <p class="error" role="alert"></p>
-    <button class="btn" type="submit">Sign in</button>
-    <p class="muted"><a href="/v8/">Back to the website</a></p>
+    <button class="btn" type="submit" data-i="login.submit">Sign in</button>
+    <p class="muted"><a href="/v8/" data-i="login.back">Back to the website</a></p>
   </form>
 </main>
 
 <!-- Not configured -->
 <main id="setup" class="login" hidden>
   <div class="login-card">
-    <p class="brand">EternaWell<span>Medicine</span></p>
-    <h1>Admin isn't set up yet</h1>
-    <p>Add a secret called <code>ADMIN_PASSWORD</code> to this Worker in the Cloudflare dashboard (Workers &amp; Pages → eternawell-new → Settings → Variables and Secrets), then reload this page.</p>
+    <div class="login-top"><p class="brand">EternaWell<span>Medicine</span></p><button type="button" class="lang-toggle" data-i="lang.btn" data-i-aria="lang.aria">中文</button></div>
+    <h1 data-i="setup.title">Admin isn't set up yet</h1>
+    <p data-i-html="setup.body"></p>
   </div>
 </main>
 
 <!-- App -->
 <div id="app" hidden>
   <header class="top">
-    <p class="brand">EternaWell<span>Admin</span></p>
-    <nav class="tabs" aria-label="Admin sections">
-      <button type="button" data-tab="bookings" aria-current="page">Bookings</button>
-      <button type="button" data-tab="messages">Messages <span class="badge" id="unread" hidden></span></button>
-      <button type="button" data-tab="website">Edit website</button>
-      <button type="button" data-tab="availability">Availability</button>
-      <button type="button" data-tab="clinic">Clinic details</button>
+    <p class="brand">EternaWell<span data-i="brand.admin">Admin</span></p>
+    <nav class="tabs" data-i-aria="nav.aria" aria-label="Admin sections">
+      <button type="button" data-tab="bookings" aria-current="page" data-i="tab.bookings">Bookings</button>
+      <button type="button" data-tab="messages"><span data-i="tab.messages">Messages</span> <span class="badge" id="unread" hidden></span></button>
+      <button type="button" data-tab="website" data-i="tab.website">Edit website</button>
+      <button type="button" data-tab="availability" data-i="tab.availability">Availability</button>
+      <button type="button" data-tab="clinic" data-i="tab.clinic">Clinic details</button>
     </nav>
     <div class="top-end">
-      <a href="/v8/" target="_blank" rel="noopener">View site<span class="visually-hidden"> (opens in a new tab)</span></a>
-      <button type="button" class="link" id="logout">Sign out</button>
+      <button type="button" class="lang-toggle" data-i="lang.btn" data-i-aria="lang.aria">中文</button>
+      <a href="/v8/" target="_blank" rel="noopener"><span data-i="top.view">View site</span><span class="visually-hidden" data-i="top.newtab"> (opens in a new tab)</span></a>
+      <button type="button" class="link" id="logout" data-i="top.logout">Sign out</button>
     </div>
   </header>
 
@@ -56,33 +58,33 @@
     <!-- Bookings -->
     <section class="panel" data-panel="bookings">
       <div class="panel-head">
-        <h1>Bookings</h1>
+        <h1 data-i="tab.bookings">Bookings</h1>
         <div class="row">
-          <div class="seg" role="group" aria-label="Show">
-            <button type="button" data-view="upcoming" aria-pressed="true">Upcoming</button>
-            <button type="button" data-view="past" aria-pressed="false">Past</button>
-            <button type="button" data-view="cancelled" aria-pressed="false">Cancelled</button>
-            <button type="button" data-view="all" aria-pressed="false">All</button>
+          <div class="seg" role="group" data-i-aria="show">
+            <button type="button" data-view="upcoming" aria-pressed="true" data-i="view.upcoming">Upcoming</button>
+            <button type="button" data-view="past" aria-pressed="false" data-i="view.past">Past</button>
+            <button type="button" data-view="cancelled" aria-pressed="false" data-i="view.cancelled">Cancelled</button>
+            <button type="button" data-view="all" aria-pressed="false" data-i="view.all">All</button>
           </div>
-          <button type="button" class="btn ghost" id="export">Download CSV</button>
-          <button type="button" class="btn" id="add-booking">Add booking</button>
+          <button type="button" class="btn ghost" id="export" data-i="bk.export">Download CSV</button>
+          <button type="button" class="btn" id="add-booking" data-i="bk.add">Add booking</button>
         </div>
       </div>
       <form class="card add-form" id="add-form" hidden>
-        <h2>Add a booking</h2>
-        <p class="muted">For visits booked by phone or text. Any time is allowed here, even outside your open hours.</p>
+        <h2 data-i="bk.addTitle">Add a booking</h2>
+        <p class="muted" data-i="bk.addHint"></p>
         <div class="grid">
-          <label class="field"><span>Date</span><input type="date" name="date" required></label>
-          <label class="field"><span>Time</span><input type="time" name="time" step="300" required></label>
-          <label class="field"><span>Visit type</span><select name="type"></select></label>
-          <label class="field"><span>Visit</span><select name="mode"><option value="in-person">In person</option><option value="telemedicine">Telemedicine</option></select></label>
-          <label class="field"><span>Patient name</span><input name="name" required></label>
-          <label class="field"><span>Phone</span><input name="phone" type="tel" required></label>
-          <label class="field"><span>Email (optional)</span><input name="email" type="email"></label>
-          <label class="field wide"><span>Note (optional, no medical details)</span><input name="note"></label>
+          <label class="field"><span data-i="f.date">Date</span><input type="date" name="date" required></label>
+          <label class="field"><span data-i="f.time">Time</span><input type="time" name="time" step="300" required></label>
+          <label class="field"><span data-i="f.type">Visit type</span><select name="type"></select></label>
+          <label class="field"><span data-i="f.mode">Visit</span><select name="mode"><option value="in-person" data-i="mode.in">In person</option><option value="telemedicine" data-i="mode.tele">Telemedicine</option></select></label>
+          <label class="field"><span data-i="f.name">Patient name</span><input name="name" required></label>
+          <label class="field"><span data-i="f.phone">Phone</span><input name="phone" type="tel" required></label>
+          <label class="field"><span data-i="f.email">Email (optional)</span><input name="email" type="email"></label>
+          <label class="field wide"><span data-i="f.note">Note (optional, no medical details)</span><input name="note"></label>
         </div>
         <p class="error" role="alert"></p>
-        <div class="row"><button class="btn" type="submit">Save booking</button><button class="btn ghost" type="button" id="add-cancel">Cancel</button></div>
+        <div class="row"><button class="btn" type="submit" data-i="bk.save">Save booking</button><button class="btn ghost" type="button" id="add-cancel" data-i="cancel">Cancel</button></div>
       </form>
       <p class="status" id="bookings-status" aria-live="polite"></p>
       <div id="bookings"></div>
@@ -91,14 +93,14 @@
     <!-- Messages -->
     <section class="panel" data-panel="messages" hidden>
       <div class="panel-head">
-        <h1>Messages</h1>
-        <div class="seg" role="group" aria-label="Show">
-          <button type="button" data-mview="all" aria-pressed="true">All</button>
-          <button type="button" data-mview="new" aria-pressed="false">Unread</button>
-          <button type="button" data-mview="read" aria-pressed="false">Read</button>
+        <h1 data-i="msg.title">Messages</h1>
+        <div class="seg" role="group" data-i-aria="show">
+          <button type="button" data-mview="all" aria-pressed="true" data-i="view.all">All</button>
+          <button type="button" data-mview="new" aria-pressed="false" data-i="msg.unreadView">Unread</button>
+          <button type="button" data-mview="read" aria-pressed="false" data-i="msg.readView">Read</button>
         </div>
       </div>
-      <p class="hint">Messages patients send from the "Send the doctor a message" box at the bottom of every page. Reply by phone or email.</p>
+      <p class="hint" data-i="msg.hint"></p>
       <p class="status" id="messages-status" aria-live="polite"></p>
       <ul class="mlist" id="messages"></ul>
     </section>
@@ -106,42 +108,25 @@
     <!-- Website editor -->
     <section class="panel" data-panel="website" hidden>
       <div class="panel-head">
-        <h1>Edit website</h1>
+        <h1 data-i="web.title">Edit website</h1>
         <div class="row">
-          <label class="field inline"><span>Page</span>
-            <select id="page">
-              <optgroup label="English">
-                <option value="">Home</option>
-                <option value="services/">Services</option>
-                <option value="about/">Meet the Doctor</option>
-                <option value="membership/">Membership</option>
-                <option value="products/">Products</option>
-                <option value="faq/">FAQ</option>
-                <option value="book/">Book</option>
-                <option value="legal/">Privacy &amp; policies</option>
-              </optgroup>
-              <optgroup label="中文 (Chinese)">
-                <option value="zh/">首页 Home</option>
-                <option value="zh/services/">服务 Services</option>
-                <option value="zh/about/">认识医生 Meet the Doctor</option>
-                <option value="zh/membership/">会员 Membership</option>
-                <option value="zh/products/">产品 Products</option>
-                <option value="zh/faq/">常见问题 FAQ</option>
-                <option value="zh/book/">预约 Book</option>
-                <option value="zh/legal/">隐私与政策 Privacy</option>
-              </optgroup>
-            </select>
-          </label>
-          <button type="button" class="btn ghost" id="discard" disabled>Discard changes</button>
+          <div class="field inline"><span data-i="web.siteLang">Website language</span>
+            <div class="seg" role="group" id="site-lang" data-i-aria="web.siteLang">
+              <button type="button" data-site="en" aria-pressed="true">English</button>
+              <button type="button" data-site="zh" aria-pressed="false" lang="zh-Hans">中文</button>
+            </div>
+          </div>
+          <label class="field inline"><span data-i="web.page">Page</span><select id="page"></select></label>
+          <button type="button" class="btn ghost" id="discard" disabled data-i="web.discard">Discard changes</button>
           <button type="button" class="btn" id="save" disabled>Save changes</button>
         </div>
       </div>
-      <p class="hint">English and Chinese pages are edited separately: choose a page from the list. Click any text on the page to change it, then press <b>Save changes</b>. Click a photo to replace it. Highlighted <span class="todo-sample">[brackets]</span> are blanks still to fill in. Text in the footer and the "Book" box at the bottom is shared by every page.</p>
+      <p class="hint" data-i-html="web.hint"></p>
       <p class="status" id="edit-status" aria-live="polite"></p>
-      <div class="frame-wrap"><iframe id="editor" title="Website page in editing mode"></iframe></div>
+      <div class="frame-wrap"><iframe id="editor" data-i-title="web.frame" title="Website page in editing mode"></iframe></div>
       <details class="card edited">
-        <summary>Edited items <span id="edited-count"></span></summary>
-        <p class="muted">Everything you've changed from the original website. Restore an item to bring back the original text or photo.</p>
+        <summary><span data-i="web.edited">Edited items</span> <span id="edited-count"></span></summary>
+        <p class="muted" data-i="web.editedHint"></p>
         <ul id="edited-list"></ul>
       </details>
     </section>
@@ -149,72 +134,70 @@
     <!-- Availability -->
     <section class="panel" data-panel="availability" hidden>
       <div class="panel-head">
-        <h1>Availability</h1>
-        <div class="row"><button type="button" class="btn" id="save-availability">Save availability</button></div>
+        <h1 data-i="av.title">Availability</h1>
+        <div class="row"><button type="button" class="btn" id="save-availability" data-i="av.save">Save availability</button></div>
       </div>
       <p class="status" id="avail-status" aria-live="polite"></p>
       <div class="cols">
         <div class="card">
-          <h2>Blocked days</h2>
-          <p class="muted">Click a day to block it, for example your EZCall work days, holidays or time off. Patients can't book blocked days. Click again to unblock.</p>
+          <h2 data-i="av.blocked">Blocked days</h2>
+          <p class="muted" data-i="av.blockedHint"></p>
           <div id="block-cal"></div>
           <div class="row range">
-            <label class="field"><span>Block from</span><input type="date" id="range-from"></label>
-            <label class="field"><span>to</span><input type="date" id="range-to"></label>
-            <button type="button" class="btn ghost" id="range-add">Block range</button>
+            <label class="field"><span data-i="av.from">Block from</span><input type="date" id="range-from"></label>
+            <label class="field"><span data-i="av.to">to</span><input type="date" id="range-to"></label>
+            <button type="button" class="btn ghost" id="range-add" data-i="av.range">Block range</button>
           </div>
           <div class="row range">
-            <label class="field"><span>Block every</span>
-              <select id="repeat-day"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select>
-            </label>
-            <label class="field"><span>for the next</span><select id="repeat-weeks"><option value="4">4 weeks</option><option value="8" selected>8 weeks</option><option value="13">3 months</option><option value="26">6 months</option></select></label>
-            <button type="button" class="btn ghost" id="repeat-add">Block these days</button>
+            <label class="field"><span data-i="av.every">Block every</span><select id="repeat-day"></select></label>
+            <label class="field"><span data-i="av.forNext">for the next</span><select id="repeat-weeks"><option value="4" data-i="av.w4">4 weeks</option><option value="8" selected data-i="av.w8">8 weeks</option><option value="13" data-i="av.m3">3 months</option><option value="26" data-i="av.m6">6 months</option></select></label>
+            <button type="button" class="btn ghost" id="repeat-add" data-i="av.repeat">Block these days</button>
           </div>
         </div>
         <div class="card" id="google">
-          <h2>Google Calendar</h2>
-          <p class="muted">Put each booking on the doctor's Google Calendar automatically, and optionally hide times when that calendar is busy (for example EZCall shifts).</p>
+          <h2 data-i="g.title">Google Calendar</h2>
+          <p class="muted" data-i="g.hint"></p>
           <p class="g-status" id="g-status" aria-live="polite"></p>
           <div class="g-share" id="g-share" hidden>
-            <p class="muted">In Google Calendar, share the calendar with this address and choose <b>Make changes to events</b>:</p>
-            <p class="row"><code id="g-email"></code><button type="button" class="btn ghost sm" id="g-copy">Copy</button></p>
+            <p class="muted" data-i-html="g.shareHint"></p>
+            <p class="row"><code id="g-email"></code><button type="button" class="btn ghost sm" id="g-copy" data-i="g.copy">Copy</button></p>
           </div>
-          <label class="field"><span>Calendar ID (Google Calendar → Settings → your calendar → Integrate calendar)</span><input id="g-cal" placeholder="name@gmail.com or …@group.calendar.google.com" spellcheck="false" autocomplete="off"></label>
-          <label class="check"><input type="checkbox" id="g-add"><span>Add each booking to this calendar</span></label>
-          <label class="check"><input type="checkbox" id="g-busy"><span>Hide times when this calendar is busy</span></label>
-          <label class="field"><span>What the calendar event shows</span>
+          <label class="field"><span data-i="g.calLabel"></span><input id="g-cal" data-i-ph="g.calPh" spellcheck="false" autocomplete="off"></label>
+          <label class="check"><input type="checkbox" id="g-add"><span data-i="g.add"></span></label>
+          <label class="check"><input type="checkbox" id="g-busy"><span data-i="g.busy"></span></label>
+          <label class="field"><span data-i="g.detail"></span>
             <select id="g-detail">
-              <option value="minimal">Visit type, initials and in person / telemedicine (recommended)</option>
-              <option value="full">Patient's full name, phone and email</option>
+              <option value="minimal" data-i="g.minimal"></option>
+              <option value="full" data-i="g.full"></option>
             </select>
           </label>
-          <p class="muted">Use "full" only if the doctor's Google account is covered by a HIPAA agreement (Google Workspace with Google's BAA).</p>
+          <p class="muted" data-i="g.hipaa"></p>
           <div class="row">
-            <button type="button" class="btn ghost" id="g-test">Test connection</button>
-            <button type="button" class="btn ghost" id="g-sync">Add upcoming bookings to calendar</button>
+            <button type="button" class="btn ghost" id="g-test" data-i="g.test">Test connection</button>
+            <button type="button" class="btn ghost" id="g-sync" data-i="g.sync">Add upcoming bookings to calendar</button>
           </div>
           <p class="status" id="g-result" aria-live="polite"></p>
-          <p class="muted">Press <b>Save availability</b> to keep changes to these settings.</p>
+          <p class="muted" data-i-html="g.saveNote"></p>
         </div>
         <div class="card">
-          <h2>Weekly hours</h2>
-          <p class="muted">Pacific Time. Untick a day to close it every week.</p>
+          <h2 data-i="av.hours">Weekly hours</h2>
+          <p class="muted" data-i="av.hoursHint"></p>
           <div id="hours"></div>
         </div>
         <div class="card">
-          <h2>Visit types</h2>
-          <p class="muted">What patients can book online, and how long each takes.</p>
+          <h2 data-i="av.types">Visit types</h2>
+          <p class="muted" data-i="av.typesHint"></p>
           <div id="types"></div>
-          <button type="button" class="btn ghost" id="add-type">Add visit type</button>
+          <button type="button" class="btn ghost" id="add-type" data-i="av.addType">Add visit type</button>
         </div>
         <div class="card">
-          <h2>Booking rules</h2>
+          <h2 data-i="av.rules">Booking rules</h2>
           <div class="grid">
-            <label class="field"><span>Start times every (minutes)</span><input type="number" id="slotStep" min="5" max="240"></label>
-            <label class="field"><span>Gap between visits (minutes)</span><input type="number" id="bufferMinutes" min="0" max="120"></label>
-            <label class="field"><span>Minimum notice (hours)</span><input type="number" id="minNoticeHours" min="0" max="336"></label>
-            <label class="field"><span>Book up to (days ahead)</span><input type="number" id="maxDaysAhead" min="1" max="365"></label>
-            <label class="field wide"><span>Delete past and cancelled bookings after (days)</span><input type="number" id="retentionDays" min="30" max="3650"></label>
+            <label class="field"><span data-i="av.step"></span><input type="number" id="slotStep" min="5" max="240"></label>
+            <label class="field"><span data-i="av.buffer"></span><input type="number" id="bufferMinutes" min="0" max="120"></label>
+            <label class="field"><span data-i="av.notice"></span><input type="number" id="minNoticeHours" min="0" max="336"></label>
+            <label class="field"><span data-i="av.ahead"></span><input type="number" id="maxDaysAhead" min="1" max="365"></label>
+            <label class="field wide"><span data-i="av.retention"></span><input type="number" id="retentionDays" min="30" max="3650"></label>
           </div>
         </div>
       </div>
@@ -222,14 +205,14 @@
 
     <!-- Clinic details -->
     <section class="panel" data-panel="clinic" hidden>
-      <div class="panel-head"><h1>Clinic details</h1></div>
+      <div class="panel-head"><h1 data-i="cl.title">Clinic details</h1></div>
       <form class="card narrow" id="clinic-form">
-        <p class="muted">Shown in the footer, on the Book page and anywhere the website lists your phone number or address.</p>
-        <label class="field"><span>Phone</span><input name="phone" required></label>
-        <label class="field"><span>Address line 1</span><input name="address1" required></label>
-        <label class="field"><span>City, state and ZIP</span><input name="address2" required></label>
+        <p class="muted" data-i="cl.hint"></p>
+        <label class="field"><span data-i="cl.phone">Phone</span><input name="phone" required></label>
+        <label class="field"><span data-i="cl.a1">Address line 1</span><input name="address1" required></label>
+        <label class="field"><span data-i="cl.a2">City, state and ZIP</span><input name="address2" required></label>
         <p class="status" aria-live="polite"></p>
-        <button class="btn" type="submit">Save clinic details</button>
+        <button class="btn" type="submit" data-i="cl.save">Save clinic details</button>
       </form>
     </section>
   </main>

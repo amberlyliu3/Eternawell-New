@@ -142,3 +142,11 @@ main { padding: 28px max(16px, 3vw) 64px; }
 .g-status.bad { color: var(--bad); border-color: rgba(161, 40, 27, 0.35); }
 .g-share code { overflow-wrap: anywhere; font-size: 14px; }
 .g-share .row { align-items: center; }
+
+/* Language toggle */
+.lang-toggle { min-width: 44px; height: 38px; padding: 0 12px; border: 1px solid var(--field); border-radius: 4px; background: var(--paper); font: inherit; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.lang-toggle:hover { border-color: var(--em); color: var(--em); }
+.login-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#site-lang button { min-height: 42px; }
+:lang(zh-Hans) body { font-family: "Figtree", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif; }
+:lang(zh-Hans) h1, :lang(zh-Hans) h2, :lang(zh-Hans) .edited summary { font-family: "Newsreader", "Songti SC", "Noto Serif SC", "STSong", serif; }

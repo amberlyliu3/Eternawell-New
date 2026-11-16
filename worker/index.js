@@ -762,7 +762,7 @@ async function page(request, env, url) {
     .on('a[href^="https://www.google.com/maps"]', { element(el) { el.setAttribute('href', mapUrl); } });
   if (editing) {
     rw = rw.on('head', { element(el) { el.append('<link rel="stylesheet" href="/admin/editor.css">', { html: true }); } })
-      .on('body', { element(el) { el.append('<script src="/admin/editor.js" defer></script>', { html: true }); } });
+      .on('body', { element(el) { el.append('<script src="/admin/i18n.js"></script><script src="/admin/editor.js" defer></script>', { html: true }); } });
   }
   const out = rw.transform(res);
   const headers = new Headers(out.headers);
