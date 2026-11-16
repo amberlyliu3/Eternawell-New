@@ -514,6 +514,41 @@ export class Store extends DurableObject {
     return true;
   }
 
+  // Everything for the admin's week calendar: bookings, blocked days and hours, weekly hours, Google busy times
+  async schedule(from, to) {
+    if (!isDate(from) || !isDate(to) || dayNum(to) < dayNum(from) || dayNum(to) - dayNum(from) > 62) return null;
+    const s = this.getSettings();
+    const bookings = this.sql.exec("SELECT id, date, start, minutes, type, type_name, mode, name, phone, email, status, source FROM bookings WHERE date >= ? AND date <= ? AND status IN ('confirmed', 'completed') ORDER BY date, start", from, to).toArray();
+    const google = [];
+    for (const [a, b] of await this.googleBusy(s, from, to)) {
+      // split ranges that cross midnight into one piece per day
+      for (let d = Math.floor(a / 1440); d * 1440 < b; d++) {
+        const date = dateOf(d);
+        if (date < from || date > to) continue;
+        google.push({ date, start: Math.max(a, d * 1440) - d * 1440, end: Math.min(b, (d + 1) * 1440) - d * 1440 });
+      }
+    }
+    return { bookings, blockedDates: s.blockedDates, blockedTimes: s.blockedTimes, hours: s.hours, google, today: nowLA().date };
+  }
+
+  // Adds or removes blocked time. Items are { date, allDay: true } or { date, start: 'HH:MM', end: 'HH:MM' }.
+  updateBlocks(add, remove) {
+    const s = this.getSettings();
+    const same = (x, y) => x.date === y.date && x.start === y.start && x.end === y.end;
+    for (const r of remove || []) {
+      if (!r || !isDate(r.date)) continue;
+      if (r.allDay) s.blockedDates = s.blockedDates.filter((d) => d !== r.date);
+      else s.blockedTimes = s.blockedTimes.filter((b) => !same(b, r));
+    }
+    for (const a of add || []) {
+      if (!a || !isDate(a.date)) continue;
+      if (a.allDay) s.blockedDates.push(a.date);
+      else s.blockedTimes.push({ date: a.date, start: a.start, end: a.end });
+    }
+    const saved = this.saveSettings(s); // validates, removes duplicates and sorts
+    return { blockedDates: saved.blockedDates, blockedTimes: saved.blockedTimes };
+  }
+
   // Messages from the website's "Send the doctor a message" form
   addMessage(m) {
     const name = String(m.name || '').trim().slice(0, 100);
@@ -715,6 +750,16 @@ async function api(request, env, url) {
     return json(await db.testGoogle(String(body.calendarId || '').trim()));
   }
   if (path === '/api/admin/google/sync' && method === 'POST') return json(await db.syncUpcoming(url.origin));
+  if (path === '/api/admin/schedule' && method === 'GET') {
+    const r = await db.schedule(url.searchParams.get('from') || '', url.searchParams.get('to') || '');
+    return r ? json(r) : bad('Choose a date range of up to two months.');
+  }
+  if (path === '/api/admin/blocks' && method === 'POST') {
+    const body = await readJson(request, 100_000);
+    const add = Array.isArray(body.add) ? body.add.slice(0, 500) : [];
+    const remove = Array.isArray(body.remove) ? body.remove.slice(0, 500) : [];
+    return json(await db.updateBlocks(add, remove));
+  }
   if (path === '/api/admin/messages' && method === 'GET') return json(await db.listMessages(url.searchParams.get('view') || 'all'));
   const mm = path.match(/^\/api\/admin\/messages\/([a-f0-9]+)$/);
   if (mm) {

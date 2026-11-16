@@ -139,34 +139,36 @@
       </div>
       <p class="status" id="avail-status" aria-live="polite"></p>
       <div class="cols">
-        <div class="card">
-          <h2 data-i="av.blocked">Blocked days</h2>
-          <p class="muted" data-i="av.blockedHint"></p>
-          <div id="block-cal"></div>
-          <div class="row range">
-            <label class="field"><span data-i="av.from">Block from</span><input type="date" id="range-from"></label>
-            <label class="field"><span data-i="av.to">to</span><input type="date" id="range-to"></label>
-            <button type="button" class="btn ghost" id="range-add" data-i="av.range">Block range</button>
-          </div>
-          <div class="row range">
-            <label class="field"><span data-i="av.every">Block every</span><select id="repeat-day"></select></label>
-            <label class="field"><span data-i="av.forNext">for the next</span><select id="repeat-weeks"><option value="4" data-i="av.w4">4 weeks</option><option value="8" selected data-i="av.w8">8 weeks</option><option value="13" data-i="av.m3">3 months</option><option value="26" data-i="av.m6">6 months</option></select></label>
-            <button type="button" class="btn ghost" id="repeat-add" data-i="av.repeat">Block these days</button>
-          </div>
-          <div class="hours-block">
-            <h3 data-i="hb.title">Block hours</h3>
-            <p class="muted" data-i="hb.hint"></p>
-            <div class="row range">
-              <label class="field"><span data-i="f.date">Date</span><input type="date" id="hb-date"></label>
-              <label class="field"><span data-i="hb.from">From</span><input type="time" id="hb-start" step="900" value="12:00"></label>
-              <label class="field"><span data-i="hb.until">Until</span><input type="time" id="hb-end" step="900" value="13:00"></label>
-              <label class="field"><span data-i="hb.repeat">Repeat</span>
-                <select id="hb-weeks"><option value="1" data-i="hb.once">Just this day</option><option value="4" data-i="hb.w4">Same time every week, 4 weeks</option><option value="8" data-i="hb.w8">Same time every week, 8 weeks</option><option value="13" data-i="hb.m3">Same time every week, 3 months</option><option value="26" data-i="hb.m6">Same time every week, 6 months</option></select>
-              </label>
-              <button type="button" class="btn ghost" id="hb-add" data-i="hb.add">Block these hours</button>
+        <div class="card sched-card" id="schedule">
+          <div class="sched-head">
+            <h2 data-i="sc.title">Schedule</h2>
+            <div class="row sched-nav">
+              <button type="button" class="btn ghost sm" id="sc-today" data-i="sc.today">Today</button>
+              <button type="button" class="nav" id="sc-prev" data-i-aria="sc.prev">‹</button>
+              <b id="sc-range" aria-live="polite"></b>
+              <button type="button" class="nav" id="sc-next" data-i-aria="sc.next">›</button>
+              <button type="button" class="btn" id="sc-new" data-i="sc.block">Block time</button>
             </div>
-            <ul class="hb-list" id="hb-list"></ul>
           </div>
+          <p class="muted" data-i="sc.hint"></p>
+          <form class="sc-form" id="sc-form" hidden>
+            <h3 data-i="sc.formTitle">Block time</h3>
+            <div class="grid">
+              <label class="field"><span data-i="f.date">Date</span><input type="date" id="sc-date" required></label>
+              <label class="check sc-allday-check"><input type="checkbox" id="sc-allday"><span data-i="sc.allDay">All day</span></label>
+              <label class="field sc-timed"><span data-i="hb.from">From</span><input type="time" id="sc-start" step="900" value="12:00"></label>
+              <label class="field sc-timed"><span data-i="hb.until">Until</span><input type="time" id="sc-end" step="900" value="13:00"></label>
+              <label class="field sc-days" hidden><span data-i="sc.lastDay">Last day</span><input type="date" id="sc-last"></label>
+              <label class="field"><span data-i="hb.repeat">Repeat</span>
+                <select id="sc-weeks"><option value="1" data-i="sc.noRepeat">Does not repeat</option><option value="4" data-i="hb.w4"></option><option value="8" data-i="hb.w8"></option><option value="13" data-i="hb.m3"></option><option value="26" data-i="hb.m6"></option></select>
+              </label>
+            </div>
+            <p class="error" id="sc-error" role="alert"></p>
+            <div class="row"><button type="submit" class="btn" data-i="sc.save">Block</button><button type="button" class="btn ghost" id="sc-cancel" data-i="cancel">Cancel</button></div>
+          </form>
+          <div class="sc-scroll"><div class="sc-grid" id="sc-grid"></div></div>
+          <p class="legend"><span class="k k-book"></span><span data-i="sc.kBooking">Booking</span> <span class="k k-block"></span><span data-i="sc.kBlocked">Blocked</span> <span class="k k-google"></span><span data-i="sc.kGoogle">Busy in Google Calendar</span> <span class="k k-closed"></span><span data-i="sc.kClosed">Closed</span></p>
+          <div class="sc-pop" id="sc-pop" role="dialog" aria-modal="false" hidden></div>
         </div>
         <div class="card" id="google">
           <h2 data-i="g.title">Google Calendar</h2>

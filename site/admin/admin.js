@@ -40,7 +40,6 @@
     document.documentElement.lang = I.lang === 'zh' ? 'zh-Hans' : 'en';
     document.title = I.lang === 'zh' ? '管理后台 · EternaWell Medicine' : 'Admin · EternaWell Medicine';
     I.apply();
-    $('#repeat-day').innerHTML = T('days').map(function (d, i) { return '<option value="' + i + '">' + d + '</option>'; }).join('');
     fillPages();
     dirty(dirtyCount);
     if (settings) { fillTypeSelect(); renderAvailability(); }
@@ -91,6 +90,7 @@
       if (b.dataset.tab === 'website' && !$('#editor').src) loadPage();
       if (b.dataset.tab === 'bookings') loadBookings();
       if (b.dataset.tab === 'messages') loadMessages();
+      if (b.dataset.tab === 'availability') loadSchedule();
     });
   });
 
@@ -312,7 +312,6 @@
   });
 
   // ---------- availability ----------
-  var calMonth = '';
   function renderAvailability() {
     ['slotStep', 'bufferMinutes', 'minNoticeHours', 'maxDaysAhead', 'retentionDays'].forEach(function (k) { $('#' + k).value = settings[k]; });
     $('#hours').innerHTML = T('days').map(function (d, i) {
@@ -322,9 +321,7 @@
         '<span aria-hidden="true">' + T('av.toWord') + '</span><label><span class="visually-hidden">' + T('av.closes', d) + '</span><input type="time" value="' + (h ? h.end : '17:00') + '"' + (h ? '' : ' disabled') + '></label></div>';
     }).join('');
     renderTypes();
-    if (!calMonth) calMonth = new Date().toISOString().slice(0, 7);
-    renderBlockCal();
-    renderHourBlocks();
+    renderSchedule();
     renderGoogle();
   }
 
@@ -414,92 +411,183 @@
     });
   }
 
-  function renderBlockCal() {
-    var p = calMonth.split('-').map(Number);
-    var first = new Date(Date.UTC(p[0], p[1] - 1, 1));
-    var days = new Date(Date.UTC(p[0], p[1], 0)).getUTCDate();
-    var today = new Date().toISOString().slice(0, 10);
-    var html = '<div class="cal-head"><button type="button" class="nav" data-d="-1" aria-label="' + T('av.prev') + '">‹</button><b>' + fmtDate(calMonth + '-01', { month: 'long', year: 'numeric' }) + '</b><button type="button" class="nav" data-d="1" aria-label="' + T('av.next') + '">›</button></div><div class="cal">';
-    T('dows').forEach(function (d) { html += '<span class="dow" aria-hidden="true">' + d + '</span>'; });
-    for (var i = 0; i < first.getUTCDay(); i++) html += '<span></span>';
-    for (var d = 1; d <= days; d++) {
-      var ds = calMonth + '-' + String(d).padStart(2, '0');
-      var blocked = settings.blockedDates.indexOf(ds) !== -1;
-      var closed = !settings.hours[new Date(Date.parse(ds + 'T00:00:00Z')).getUTCDay()];
-      var partial = !blocked && !closed && settings.blockedTimes.some(function (b) { return b.date === ds; });
-      html += '<button type="button" class="day' + (blocked ? ' blocked' : '') + (closed ? ' closed' : '') + (partial ? ' partial' : '') + (ds < today ? ' past' : '') + '" data-date="' + ds + '" aria-pressed="' + blocked + '" aria-label="' + fmtDate(ds) + T(blocked ? 'av.ariaBlocked' : closed ? 'av.ariaClosed' : partial ? 'av.ariaPartial' : 'av.ariaOpen') + '">' + d + '</button>';
-    }
-    html += '</div><p class="legend"><span class="k open"></span>' + T('av.open') + ' <span class="k partial"></span>' + T('av.partial') + ' <span class="k blocked"></span>' + T('av.isBlocked') + ' <span class="k closed"></span>' + T('av.closedWeekly') + '</p>';
-    $('#block-cal').innerHTML = html;
+  // ---------- schedule (week view, like Google Calendar) ----------
+  var H = 52; // pixels per hour
+  var sc = { start: '', data: null };
+  function weekStart(d) { var w = new Date(Date.parse(d + 'T00:00:00Z')).getUTCDay(); return addDays(d, -w); }
+  function hm2(v) { var p = v.split(':').map(Number); return p[0] * 60 + p[1]; }
+  function mm2hm(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
+  function loadSchedule() {
+    if (!sc.start) sc.start = weekStart(lastToday || new Date().toISOString().slice(0, 10));
+    var from = sc.start, to = addDays(sc.start, 6);
+    api('/api/admin/schedule?from=' + from + '&to=' + to).then(function (d) {
+      if (from !== sc.start) return;
+      sc.data = d;
+      if (!lastToday) lastToday = d.today;
+      settings.blockedDates = d.blockedDates;
+      settings.blockedTimes = d.blockedTimes;
+      renderSchedule();
+    }).catch(function (e) { status($('#avail-status'), e.message, true); });
   }
-  $('#block-cal').addEventListener('click', function (e) {
-    var nav = e.target.closest('.nav');
-    if (nav) {
-      var p = calMonth.split('-').map(Number);
-      calMonth = new Date(Date.UTC(p[0], p[1] - 1 + Number(nav.dataset.d), 1)).toISOString().slice(0, 7);
-      renderBlockCal();
+  function renderSchedule() {
+    var d = sc.data;
+    if (!d) return;
+    var days = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return addDays(sc.start, i); });
+    $('#sc-range').textContent = fmtDate(days[0], { month: 'short', day: 'numeric' }) + ' – ' + fmtDate(days[6], { month: 'short', day: 'numeric', year: 'numeric' });
+    // Hours shown: the clinic's opening hours, widened to include anything booked or blocked outside them
+    var lo = 24 * 60, hi = 0;
+    d.hours.forEach(function (h) { if (h) { lo = Math.min(lo, hm2(h.start)); hi = Math.max(hi, hm2(h.end)); } });
+    d.bookings.forEach(function (b) { lo = Math.min(lo, b.start); hi = Math.max(hi, b.start + b.minutes); });
+    d.blockedTimes.forEach(function (b) { if (days.indexOf(b.date) !== -1) { lo = Math.min(lo, hm2(b.start)); hi = Math.max(hi, hm2(b.end)); } });
+    if (lo >= hi) { lo = 9 * 60; hi = 17 * 60; }
+    lo = Math.max(0, Math.floor(lo / 60) * 60 - 60);
+    hi = Math.min(24 * 60, Math.ceil(hi / 60) * 60 + 60);
+    var top = function (m) { return ((m - lo) / 60) * H; };
+    var dows = T('dows');
+    var html = '<div class="sc-row sc-heads"><div class="sc-corner"></div>' + days.map(function (ds, i) {
+      return '<div class="sc-dayhead' + (ds === d.today ? ' today' : '') + (ds < d.today ? ' past' : '') + '"><span>' + dows[i] + '</span><b>' + Number(ds.slice(8)) + '</b></div>';
+    }).join('') + '</div>';
+    html += '<div class="sc-row sc-allday"><div class="sc-corner">' + T('sc.allDay') + '</div>' + days.map(function (ds, i) {
+      var blocked = d.blockedDates.indexOf(ds) !== -1;
+      var closed = !d.hours[i];
+      if (blocked) return '<div class="sc-adcell"><button type="button" class="sc-adblock" data-unblock-day="' + ds + '">' + T('sc.blockedAllDay') + '</button></div>';
+      return '<div class="sc-adcell"><button type="button" class="sc-adadd" data-allday="' + ds + '" aria-label="' + esc(T('sc.blockDay', fmtDate(ds))) + '">' + (closed ? T('sc.kClosed') : '+') + '</button></div>';
+    }).join('') + '</div>';
+    html += '<div class="sc-row sc-body" style="height:' + top(hi) + 'px"><div class="sc-times">';
+    for (var m = lo; m < hi; m += 60) html += '<span style="top:' + top(m) + 'px">' + fmtTime(m) + '</span>';
+    html += '</div>' + days.map(function (ds, i) {
+      var h = d.hours[i];
+      var col = '<div class="sc-col' + (ds < d.today ? ' past' : '') + '" data-date="' + ds + '" style="background-size:100% ' + H + 'px">';
+      // closed hours
+      if (!h) col += '<div class="sc-closed" style="top:0;height:100%"></div>';
+      else {
+        if (hm2(h.start) > lo) col += '<div class="sc-closed" style="top:0;height:' + top(hm2(h.start)) + 'px"></div>';
+        if (hm2(h.end) < hi) col += '<div class="sc-closed" style="top:' + top(hm2(h.end)) + 'px;bottom:0"></div>';
+      }
+      if (d.blockedDates.indexOf(ds) !== -1) col += '<div class="sc-dayblock" data-unblock-day="' + ds + '"></div>';
+      d.google.filter(function (g) { return g.date === ds; }).forEach(function (g) {
+        var s0 = Math.max(g.start, lo), e0 = Math.min(g.end, hi);
+        if (e0 > s0) col += '<div class="sc-ev sc-google" style="top:' + top(s0) + 'px;height:' + Math.max(18, top(e0) - top(s0)) + 'px"><span>' + T('sc.kGoogle') + '</span></div>';
+      });
+      d.blockedTimes.forEach(function (b, bi) {
+        if (b.date !== ds) return;
+        var s0 = hm2(b.start), e0 = hm2(b.end);
+        var hb = top(e0) - top(s0);
+        col += '<button type="button" class="sc-ev sc-block' + (hb < 36 ? ' short' : '') + '" data-block="' + bi + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, hb) + 'px"><b>' + T('sc.kBlocked') + (hb < 36 ? ' ' + fmtTime(s0) : '') + '</b><span>' + fmtTime(s0) + ' – ' + fmtTime(e0) + '</span></button>';
+      });
+      d.bookings.forEach(function (b, bi) {
+        if (b.date !== ds) return;
+        var hk = top(b.start + b.minutes) - top(b.start);
+        col += '<button type="button" class="sc-ev sc-book' + (b.status === 'completed' ? ' done' : '') + (hk < 36 ? ' short' : '') + '" data-booking="' + bi + '" style="top:' + top(b.start) + 'px;height:' + Math.max(18, hk) + 'px"><b>' + fmtTime(b.start) + ' ' + esc(b.name) + '</b><span>' + esc(typeName(b.type, b.type_name)) + '</span></button>';
+      });
+      return col + '</div>';
+    }).join('') + '</div>';
+    sc.lo = lo;
+    $('#sc-grid').innerHTML = html;
+  }
+  function closePop() { $('#sc-pop').hidden = true; }
+  function openPop(html, ev) {
+    var pop = $('#sc-pop');
+    pop.innerHTML = html + '<button type="button" class="sc-x" data-pop-close aria-label="' + T('cancel') + '">×</button>';
+    pop.hidden = false;
+    var card = $('#schedule').getBoundingClientRect();
+    var x = Math.min(ev.clientX - card.left + 8, card.width - pop.offsetWidth - 8);
+    var y = ev.clientY - card.top + 8;
+    pop.style.left = Math.max(8, x) + 'px';
+    pop.style.top = y + 'px';
+    var first = pop.querySelector('button:not([data-pop-close]), a');
+    if (first) first.focus();
+  }
+  function openForm(date, startMin, allDay) {
+    closePop();
+    var f = $('#sc-form');
+    f.hidden = false;
+    $('#sc-date').value = date || lastToday;
+    $('#sc-last').value = '';
+    $('#sc-allday').checked = !!allDay;
+    if (startMin !== undefined) { $('#sc-start').value = mm2hm(startMin); $('#sc-end').value = mm2hm(Math.min(startMin + 60, 23 * 60 + 45)); }
+    $('#sc-weeks').value = '1';
+    $('#sc-error').textContent = '';
+    syncAllDay();
+    $('#sc-date').focus();
+  }
+  function syncAllDay() {
+    var all = $('#sc-allday').checked;
+    $$('.sc-timed').forEach(function (el) { el.hidden = all; });
+    $$('.sc-days').forEach(function (el) { el.hidden = !all; });
+  }
+  function sendBlocks(body, msg) {
+    return api('/api/admin/blocks', { method: 'POST', body: body }).then(function (r) {
+      settings.blockedDates = r.blockedDates;
+      settings.blockedTimes = r.blockedTimes;
+      status($('#avail-status'), msg);
+      loadSchedule();
+    }).catch(function (e) { status($('#avail-status'), e.message, true); });
+  }
+  $('#sc-allday').addEventListener('change', syncAllDay);
+  $('#sc-new').addEventListener('click', function () { openForm(lastToday, 12 * 60, false); });
+  $('#sc-cancel').addEventListener('click', function () { $('#sc-form').hidden = true; });
+  $('#sc-today').addEventListener('click', function () { sc.start = weekStart(lastToday || new Date().toISOString().slice(0, 10)); loadSchedule(); });
+  $('#sc-prev').addEventListener('click', function () { sc.start = addDays(sc.start, -7); loadSchedule(); });
+  $('#sc-next').addEventListener('click', function () { sc.start = addDays(sc.start, 7); loadSchedule(); });
+  $('#sc-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var date = $('#sc-date').value, all = $('#sc-allday').checked, weeks = Number($('#sc-weeks').value);
+    var start = $('#sc-start').value, end = $('#sc-end').value, last = $('#sc-last').value || date;
+    if (!date || (!all && (!start || !end || end <= start)) || (all && last < date)) { $('#sc-error').textContent = T(all ? 'av.rangeErr' : 'hb.err'); return; }
+    var add = [];
+    for (var w = 0; w < weeks; w++) {
+      if (all) { for (var dd = date; dd <= last && add.length < 500; dd = addDays(dd, 1)) add.push({ date: addDays(dd, w * 7), allDay: true }); }
+      else add.push({ date: addDays(date, w * 7), start: start, end: end });
+    }
+    $('#sc-form').hidden = true;
+    sc.start = weekStart(date);
+    sendBlocks({ add: add }, T('sc.added', add.length));
+  });
+  $('#sc-grid').addEventListener('click', function (e) {
+    var d = sc.data;
+    var t;
+    if ((t = e.target.closest('[data-booking]'))) {
+      var b = d.bookings[Number(t.dataset.booking)];
+      openPop('<b class="sc-pop-title">' + esc(b.name) + '</b><p>' + fmtDate(b.date, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + fmtTime(b.start) + ' – ' + fmtTime(b.start + b.minutes) + '</p>' +
+        '<p>' + esc(typeName(b.type, b.type_name)) + ' · ' + T(b.mode === 'telemedicine' ? 'mode.tele' : 'mode.in') + '</p>' +
+        '<p><a href="tel:' + esc(b.phone.replace(/[^\d+]/g, '')) + '">' + esc(b.phone) + '</a>' + (b.email ? ' · <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a>' : '') + '</p>' +
+        '<div class="row"><button type="button" class="btn ghost sm" data-goto-bookings>' + T('sc.openBookings') + '</button></div>', e);
       return;
     }
-    var day = e.target.closest('.day');
-    if (!day) return;
-    var ds = day.dataset.date;
-    var i = settings.blockedDates.indexOf(ds);
-    if (i === -1) settings.blockedDates.push(ds); else settings.blockedDates.splice(i, 1);
-    renderBlockCal();
-    $('#block-cal [data-date="' + ds + '"]').focus();
-    status($('#avail-status'), T('av.unsaved'), false);
+    if ((t = e.target.closest('[data-block]'))) {
+      var bl = d.blockedTimes[Number(t.dataset.block)];
+      openPop('<b class="sc-pop-title">' + T('sc.kBlocked') + '</b><p>' + fmtDate(bl.date, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + fmtTime(hm2(bl.start)) + ' – ' + fmtTime(hm2(bl.end)) + '</p>' +
+        '<div class="row"><button type="button" class="btn sm" data-unblock-time="' + t.dataset.block + '">' + T('hb.remove') + '</button></div>', e);
+      return;
+    }
+    if ((t = e.target.closest('[data-unblock-day]'))) {
+      var ds = t.dataset.unblockDay;
+      openPop('<b class="sc-pop-title">' + T('sc.blockedAllDay') + '</b><p>' + fmtDate(ds) + '</p><div class="row"><button type="button" class="btn sm" data-unblock-allday="' + ds + '">' + T('hb.remove') + '</button></div>', e);
+      return;
+    }
+    if ((t = e.target.closest('[data-allday]'))) { openForm(t.dataset.allday, undefined, true); return; }
+    var col = e.target.closest('.sc-col');
+    if (col) {
+      var y = e.clientY - col.getBoundingClientRect().top;
+      var m = sc.lo + Math.floor((y / H) * 2) * 30; // round down to the half hour
+      openForm(col.dataset.date, m, false);
+    }
   });
-  function block(dates) {
-    dates.forEach(function (d) { if (settings.blockedDates.indexOf(d) === -1) settings.blockedDates.push(d); });
-    renderBlockCal();
-    status($('#avail-status'), T('av.nBlocked', dates.length));
-  }
-  $('#range-add').addEventListener('click', function () {
-    var from = $('#range-from').value, to = $('#range-to').value || from;
-    if (!from || to < from) { status($('#avail-status'), T('av.rangeErr'), true); return; }
-    var out = [];
-    for (var d = from; d <= to && out.length < 400; d = addDays(d, 1)) out.push(d);
-    block(out);
+  $('#sc-pop').addEventListener('click', function (e) {
+    var t;
+    if (e.target.closest('[data-pop-close]')) { closePop(); return; }
+    if (e.target.closest('[data-goto-bookings]')) { closePop(); $('.tabs [data-tab="bookings"]').click(); return; }
+    if ((t = e.target.closest('[data-unblock-time]'))) {
+      var bl = sc.data.blockedTimes[Number(t.dataset.unblockTime)];
+      closePop();
+      sendBlocks({ remove: [{ date: bl.date, start: bl.start, end: bl.end }] }, T('sc.unblocked'));
+      return;
+    }
+    if ((t = e.target.closest('[data-unblock-allday]'))) { closePop(); sendBlocks({ remove: [{ date: t.dataset.unblockAllday, allDay: true }] }, T('sc.unblocked')); }
   });
-  $('#repeat-add').addEventListener('click', function () {
-    var dow = Number($('#repeat-day').value);
-    var weeks = Number($('#repeat-weeks').value);
-    var d = new Date().toISOString().slice(0, 10);
-    while (new Date(Date.parse(d + 'T00:00:00Z')).getUTCDay() !== dow) d = addDays(d, 1);
-    var out = [];
-    for (var w = 0; w < weeks; w++) out.push(addDays(d, w * 7));
-    block(out);
-  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePop(); } });
 
-  // ---------- blocked hours within a day ----------
-  function hmLabel(v) { var p = v.split(':').map(Number); return fmtTime(p[0] * 60 + p[1]); }
-  function renderHourBlocks() {
-    var today = new Date().toISOString().slice(0, 10);
-    var list = settings.blockedTimes.map(function (b, i) { return { b: b, i: i }; }).filter(function (x) { return x.b.date >= today; });
-    $('#hb-list').innerHTML = list.length ? list.map(function (x) {
-      return '<li><span>' + fmtDate(x.b.date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + '</span><b>' + hmLabel(x.b.start) + ' – ' + hmLabel(x.b.end) + '</b>' +
-        '<button type="button" class="btn ghost sm" data-hb="' + x.i + '">' + T('hb.remove') + '</button></li>';
-    }).join('') : '<li class="muted">' + T('hb.none') + '</li>';
-  }
-  $('#hb-add').addEventListener('click', function () {
-    var date = $('#hb-date').value, start = $('#hb-start').value, end = $('#hb-end').value;
-    if (!date || !start || !end || end <= start) { status($('#avail-status'), T('hb.err'), true); return; }
-    var weeks = Number($('#hb-weeks').value);
-    for (var w = 0; w < weeks; w++) settings.blockedTimes.push({ date: addDays(date, w * 7), start: start, end: end });
-    settings.blockedTimes.sort(function (a, b) { return (a.date + a.start).localeCompare(b.date + b.start); });
-    calMonth = date.slice(0, 7);
-    renderBlockCal();
-    renderHourBlocks();
-    status($('#avail-status'), T('hb.added', weeks));
-  });
-  $('#hb-list').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-hb]');
-    if (!b) return;
-    settings.blockedTimes.splice(Number(b.dataset.hb), 1);
-    renderBlockCal();
-    renderHourBlocks();
-    status($('#avail-status'), T('hb.removed'));
-  });
   $('#save-availability').addEventListener('click', function () {
     readTypes();
     readGoogle();
@@ -517,6 +605,7 @@
       renderAvailability();
       fillTypeSelect();
       status($('#avail-status'), T('av.saved'));
+      loadSchedule();
     }).catch(function (e) { status($('#avail-status'), e.message, true); });
   });
 
