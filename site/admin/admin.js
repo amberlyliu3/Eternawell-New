@@ -324,6 +324,7 @@
     renderTypes();
     if (!calMonth) calMonth = new Date().toISOString().slice(0, 7);
     renderBlockCal();
+    renderHourBlocks();
     renderGoogle();
   }
 
@@ -425,9 +426,10 @@
       var ds = calMonth + '-' + String(d).padStart(2, '0');
       var blocked = settings.blockedDates.indexOf(ds) !== -1;
       var closed = !settings.hours[new Date(Date.parse(ds + 'T00:00:00Z')).getUTCDay()];
-      html += '<button type="button" class="day' + (blocked ? ' blocked' : '') + (closed ? ' closed' : '') + (ds < today ? ' past' : '') + '" data-date="' + ds + '" aria-pressed="' + blocked + '" aria-label="' + fmtDate(ds) + T(blocked ? 'av.ariaBlocked' : closed ? 'av.ariaClosed' : 'av.ariaOpen') + '">' + d + '</button>';
+      var partial = !blocked && !closed && settings.blockedTimes.some(function (b) { return b.date === ds; });
+      html += '<button type="button" class="day' + (blocked ? ' blocked' : '') + (closed ? ' closed' : '') + (partial ? ' partial' : '') + (ds < today ? ' past' : '') + '" data-date="' + ds + '" aria-pressed="' + blocked + '" aria-label="' + fmtDate(ds) + T(blocked ? 'av.ariaBlocked' : closed ? 'av.ariaClosed' : partial ? 'av.ariaPartial' : 'av.ariaOpen') + '">' + d + '</button>';
     }
-    html += '</div><p class="legend"><span class="k open"></span>' + T('av.open') + ' <span class="k blocked"></span>' + T('av.isBlocked') + ' <span class="k closed"></span>' + T('av.closedWeekly') + '</p>';
+    html += '</div><p class="legend"><span class="k open"></span>' + T('av.open') + ' <span class="k partial"></span>' + T('av.partial') + ' <span class="k blocked"></span>' + T('av.isBlocked') + ' <span class="k closed"></span>' + T('av.closedWeekly') + '</p>';
     $('#block-cal').innerHTML = html;
   }
   $('#block-cal').addEventListener('click', function (e) {
@@ -469,6 +471,35 @@
     block(out);
   });
 
+  // ---------- blocked hours within a day ----------
+  function hmLabel(v) { var p = v.split(':').map(Number); return fmtTime(p[0] * 60 + p[1]); }
+  function renderHourBlocks() {
+    var today = new Date().toISOString().slice(0, 10);
+    var list = settings.blockedTimes.map(function (b, i) { return { b: b, i: i }; }).filter(function (x) { return x.b.date >= today; });
+    $('#hb-list').innerHTML = list.length ? list.map(function (x) {
+      return '<li><span>' + fmtDate(x.b.date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + '</span><b>' + hmLabel(x.b.start) + ' – ' + hmLabel(x.b.end) + '</b>' +
+        '<button type="button" class="btn ghost sm" data-hb="' + x.i + '">' + T('hb.remove') + '</button></li>';
+    }).join('') : '<li class="muted">' + T('hb.none') + '</li>';
+  }
+  $('#hb-add').addEventListener('click', function () {
+    var date = $('#hb-date').value, start = $('#hb-start').value, end = $('#hb-end').value;
+    if (!date || !start || !end || end <= start) { status($('#avail-status'), T('hb.err'), true); return; }
+    var weeks = Number($('#hb-weeks').value);
+    for (var w = 0; w < weeks; w++) settings.blockedTimes.push({ date: addDays(date, w * 7), start: start, end: end });
+    settings.blockedTimes.sort(function (a, b) { return (a.date + a.start).localeCompare(b.date + b.start); });
+    calMonth = date.slice(0, 7);
+    renderBlockCal();
+    renderHourBlocks();
+    status($('#avail-status'), T('hb.added', weeks));
+  });
+  $('#hb-list').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-hb]');
+    if (!b) return;
+    settings.blockedTimes.splice(Number(b.dataset.hb), 1);
+    renderBlockCal();
+    renderHourBlocks();
+    status($('#avail-status'), T('hb.removed'));
+  });
   $('#save-availability').addEventListener('click', function () {
     readTypes();
     readGoogle();
@@ -480,6 +511,7 @@
     ['slotStep', 'bufferMinutes', 'minNoticeHours', 'maxDaysAhead', 'retentionDays'].forEach(function (k) { settings[k] = Number($('#' + k).value); });
     var today = new Date().toISOString().slice(0, 10);
     settings.blockedDates = settings.blockedDates.filter(function (d) { return d >= addDays(today, -1); });
+    settings.blockedTimes = settings.blockedTimes.filter(function (b) { return b.date >= addDays(today, -1); });
     api('/api/admin/settings', { method: 'PUT', body: settings }).then(function (s) {
       settings = s;
       renderAvailability();

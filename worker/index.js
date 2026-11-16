@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS = {
   minNoticeHours: 12,
   maxDaysAhead: 60,
   blockedDates: [], // e.g. the doctor's EZCall work days
+  blockedTimes: [], // part of a day: { date: 'YYYY-MM-DD', start: 'HH:MM', end: 'HH:MM' }
   retentionDays: 365, // past and cancelled bookings older than this are deleted
   // Google Calendar: the calendar is shared with the service account in GOOGLE_SERVICE_ACCOUNT_KEY
   google: { calendarId: '', addEvents: true, blockBusy: false, detail: 'minimal' },
@@ -131,6 +132,15 @@ function cleanSettings(input) {
   s.maxDaysAhead = num(input.maxDaysAhead, 1, 365, s.maxDaysAhead);
   s.retentionDays = num(input.retentionDays, 30, 3650, s.retentionDays);
   if (Array.isArray(input.blockedDates)) s.blockedDates = [...new Set(input.blockedDates.filter(isDate))].sort().slice(-1000);
+  if (Array.isArray(input.blockedTimes)) {
+    const seen = new Set();
+    s.blockedTimes = input.blockedTimes
+      .filter((b) => b && isDate(b.date) && isHM(b.start) && isHM(b.end) && hm(b.end) > hm(b.start))
+      .map((b) => ({ date: b.date, start: b.start, end: b.end }))
+      .filter((b) => { const k = `${b.date} ${b.start} ${b.end}`; return !seen.has(k) && seen.add(k); })
+      .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))
+      .slice(-2000);
+  }
   if (input.google && typeof input.google === 'object') {
     const g = input.google;
     const id = String(g.calendarId || '').trim().slice(0, 300);
@@ -313,6 +323,7 @@ export class Store extends DurableObject {
     const earliest = today * 1440 + now.min + settings.minNoticeHours * 60;
     const busy = taken.filter((b) => b.date === date)
       .map((b) => [absMin(b.date, b.start) - settings.bufferMinutes, absMin(b.date, b.start) + b.minutes + settings.bufferMinutes])
+      .concat(settings.blockedTimes.filter((b) => b.date === date).map((b) => [absMin(date, hm(b.start)), absMin(date, hm(b.end))]))
       .concat(googleBusy);
     const out = [];
     for (let t = hm(h.start); t + type.minutes <= hm(h.end); t += settings.slotStep) {
