@@ -539,6 +539,7 @@
     d.hours.forEach(function (h) { if (h) { lo = Math.min(lo, hm2(h.start)); hi = Math.max(hi, hm2(h.end)); } });
     d.bookings.forEach(function (b) { lo = Math.min(lo, b.start); hi = Math.max(hi, b.start + b.minutes); });
     d.blockedTimes.forEach(function (b) { if (days.indexOf(b.date) !== -1) { lo = Math.min(lo, hm2(b.start)); hi = Math.max(hi, hm2(b.end)); } });
+    d.google.forEach(function (g) { if (days.indexOf(g.date) !== -1 && g.end - g.start < 1440) { lo = Math.min(lo, g.start); hi = Math.max(hi, g.end); } });
     if (lo >= hi) { lo = 9 * 60; hi = 17 * 60; }
     lo = Math.max(0, Math.floor(lo / 60) * 60 - 60);
     hi = Math.min(24 * 60, Math.ceil(hi / 60) * 60 + 60);

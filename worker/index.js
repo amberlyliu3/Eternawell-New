@@ -556,7 +556,7 @@ export class Store extends DurableObject {
     const s = this.getSettings();
     const bookings = this.sql.exec("SELECT id, date, start, minutes, type, type_name, mode, name, phone, email, status, source FROM bookings WHERE date >= ? AND date <= ? AND status IN ('confirmed', 'completed') ORDER BY date, start", from, to).toArray();
     const google = [];
-    for (const [a, b, label] of await this.googleBusy(s, from, to)) {
+    for (const [a, b, label] of await this.googleBusy(s, from, to, true)) { // always fresh in the admin
       // split ranges that cross midnight into one piece per day
       for (let d = Math.floor(a / 1440); d * 1440 < b; d++) {
         const date = dateOf(d);
