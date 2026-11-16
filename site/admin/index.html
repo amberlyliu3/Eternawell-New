@@ -135,7 +135,6 @@
     <section class="panel" data-panel="availability" hidden>
       <div class="panel-head">
         <h1 data-i="av.title">Availability</h1>
-        <div class="row"><button type="button" class="btn" id="save-availability" data-i="av.save">Save availability</button></div>
       </div>
       <p class="status" id="avail-status" aria-live="polite"></p>
       <div class="cols">
@@ -215,6 +214,10 @@
             <label class="field wide"><span data-i="av.retention"></span><input type="number" id="retentionDays" min="30" max="3650"></label>
           </div>
         </div>
+      </div>
+      <div class="save-bar" id="save-bar">
+        <p id="save-bar-msg" aria-live="polite" data-i="av.saveHint"></p>
+        <button type="button" class="btn" id="save-availability" data-i="av.save">Save availability</button>
       </div>
     </section>
 

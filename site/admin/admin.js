@@ -8,6 +8,9 @@
   var PAGES = ['home', 'services', 'about', 'membership', 'products', 'faq', 'book', 'legal'];
   var settings = null;
   var lastToday = '';
+  var frame = document.getElementById('editor');
+  var mview = 'all';
+  var lastPage = 'home';
   var view = 'upcoming';
   var bookings = [];
   var dirtyCount = 0;
@@ -42,7 +45,8 @@
     I.apply();
     fillPages();
     dirty(dirtyCount);
-    if (settings) { fillTypeSelect(); renderAvailability(); }
+    if (settings) { if (avDirty) readAvailabilityForm(); fillTypeSelect(); renderAvailability(); }
+    if ($('#save-bar')) $('#save-bar-msg').textContent = T(avDirty ? 'av.unsavedBar' : 'av.saveHint');
     if (!$('#app').hidden) { renderBookings(lastToday); loadMessages(); loadEdited(); }
   }
   $$('.lang-toggle').forEach(function (b) {
@@ -77,21 +81,67 @@
     show('app');
     loadMessages();
     api('/api/admin/settings').then(function (s) { settings = s; fillTypeSelect(); renderAvailability(); fillClinic(); if (lastToday) renderBookings(lastToday); });
-    loadBookings();
+    readUrl();
+    showTab(tabFromUrl());
   }
 
-  // ---------- tabs ----------
+  // ---------- sections and their addresses (/admin/bookings, /admin/website?lang=zh&page=about, …) ----------
+  var TABS = ['bookings', 'messages', 'website', 'availability', 'clinic'];
+  function tabFromUrl() {
+    var m = location.pathname.match(/^\/admin\/([a-z]+)/);
+    return m && TABS.indexOf(m[1]) !== -1 ? m[1] : 'bookings';
+  }
+  function urlFor(tab) {
+    if (tab === 'website') return '/admin/website?lang=' + siteLang + '&page=' + $('#page').value;
+    if (tab === 'bookings' && view !== 'upcoming') return '/admin/bookings?view=' + view;
+    if (tab === 'messages' && mview !== 'all') return '/admin/messages?view=' + mview;
+    return '/admin/' + tab;
+  }
+  function setUrl(tab, push) {
+    var u = urlFor(tab);
+    if (u === location.pathname + location.search) return;
+    if (push) history.pushState(null, '', u); else history.replaceState(null, '', u);
+  }
+  // Restores the bookings filter, messages filter, and the editor's language and page from the address
+  function readUrl() {
+    var q = new URLSearchParams(location.search);
+    var tab = tabFromUrl();
+    var v = q.get('view');
+    view = tab === 'bookings' && ['upcoming', 'past', 'cancelled', 'all'].indexOf(v) !== -1 ? v : 'upcoming';
+    mview = tab === 'messages' && ['all', 'new', 'read'].indexOf(v) !== -1 ? v : 'all';
+    $$('.seg button[data-view]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.view === view)); });
+    $$('[data-mview]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.mview === mview)); });
+    if (tab === 'website') {
+      var lang = q.get('lang') === 'zh' ? 'zh' : 'en';
+      var page = PAGES.indexOf(q.get('page')) !== -1 ? q.get('page') : 'home';
+      if (lang !== siteLang || page !== $('#page').value) {
+        siteLang = lang;
+        $$('#site-lang button').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.site === lang)); });
+        $('#page').value = page;
+        lastPage = page;
+        if (frame.src) loadPage();
+      }
+    }
+  }
+  function showTab(tab) {
+    $$('.tabs button').forEach(function (x) { if (x.dataset.tab === tab) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
+    $$('.panel').forEach(function (p) { p.hidden = p.dataset.panel !== tab; });
+    if (tab === 'website' && !frame.src) loadPage();
+    if (tab === 'bookings') loadBookings();
+    if (tab === 'messages') loadMessages();
+    if (tab === 'availability') loadSchedule();
+  }
   $$('.tabs button').forEach(function (b) {
     b.addEventListener('click', function () {
       if (dirtyCount && b.dataset.tab !== 'website') { status($('#edit-status'), T('web.unsaved'), true); return; }
-      $$('.tabs button').forEach(function (x) { x.removeAttribute('aria-current'); });
-      b.setAttribute('aria-current', 'page');
-      $$('.panel').forEach(function (p) { p.hidden = p.dataset.panel !== b.dataset.tab; });
-      if (b.dataset.tab === 'website' && !$('#editor').src) loadPage();
-      if (b.dataset.tab === 'bookings') loadBookings();
-      if (b.dataset.tab === 'messages') loadMessages();
-      if (b.dataset.tab === 'availability') loadSchedule();
+      if (b.dataset.tab !== tabFromUrl()) setUrl(b.dataset.tab, true);
+      showTab(b.dataset.tab);
     });
+  });
+  window.addEventListener('popstate', function () {
+    if (dirtyCount) { setUrl('website', true); status($('#edit-status'), T('web.unsaved'), true); return; }
+    readUrl();
+    showTab(tabFromUrl());
   });
 
   // ---------- bookings ----------
@@ -99,6 +149,7 @@
     b.addEventListener('click', function () {
       view = b.dataset.view;
       $$('.seg button[data-view]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      setUrl('bookings', false);
       loadBookings();
     });
   });
@@ -201,11 +252,11 @@
   });
 
   // ---------- messages ----------
-  var mview = 'all';
   $$('[data-mview]').forEach(function (b) {
     b.addEventListener('click', function () {
       mview = b.dataset.mview;
       $$('[data-mview]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      setUrl('messages', false);
       loadMessages();
     });
   });
@@ -238,17 +289,20 @@
   });
 
   // ---------- website editor ----------
-  var frame = $('#editor');
   var siteLang = 'en';
   function pagePath(p) { return '/v8/' + (siteLang === 'zh' ? 'zh/' : '') + (p === 'home' ? '' : p + '/'); }
-  function loadPage() { dirty(0); frame.src = pagePath($('#page').value) + '?edit=1'; loadEdited(); }
+  function loadPage() {
+    dirty(0);
+    frame.src = pagePath($('#page').value) + '?edit=1';
+    if (tabFromUrl() === 'website') setUrl('website', false);
+    loadEdited();
+  }
   function fillPages() {
     var sel = $('#page');
     var cur = sel.value || 'home';
     sel.innerHTML = PAGES.map(function (p) { return '<option value="' + p + '">' + esc(T('page.' + p)) + '</option>'; }).join('');
     sel.value = cur;
   }
-  var lastPage = 'home';
   $('#page').addEventListener('focus', function () { lastPage = this.value; });
   $('#page').addEventListener('change', function () {
     if (dirtyCount) { this.value = lastPage; status($('#edit-status'), T('web.unsaved'), true); return; }
@@ -278,7 +332,7 @@
     if (e.data.type === 'ew-saved') { dirty(0); status($('#edit-status'), T('web.saved')); loadEdited(); }
     if (e.data.type === 'ew-error') { $('#save').disabled = false; status($('#edit-status'), I.srv(e.data.message), true); }
   });
-  window.addEventListener('beforeunload', function (e) { if (dirtyCount) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', function (e) { if (dirtyCount || avDirty) { e.preventDefault(); e.returnValue = ''; } });
 
   function loadEdited() {
     api('/api/admin/content').then(function (d) {
@@ -471,8 +525,7 @@
       if (from !== sc.start) return;
       sc.data = d;
       if (!lastToday) lastToday = d.today;
-      settings.blockedDates = d.blockedDates;
-      settings.blockedTimes = d.blockedTimes;
+      if (settings) { settings.blockedDates = d.blockedDates; settings.blockedTimes = d.blockedTimes; }
       renderSchedule();
     }).catch(function (e) { status($('#avail-status'), e.message, true); });
   }
@@ -635,7 +688,21 @@
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePop(); } });
 
-  $('#save-availability').addEventListener('click', function () {
+  // The save bar at the bottom lights up when hours, visit types, rules or calendars change (the Schedule saves itself)
+  var avDirty = false;
+  function markAvailability(on) {
+    avDirty = on;
+    $('#save-bar').classList.toggle('dirty', on);
+    $('#save-bar-msg').textContent = T(on ? 'av.unsavedBar' : 'av.saveHint');
+  }
+  $('[data-panel="availability"] .cols').addEventListener('input', function (e) { if (!e.target.closest('#schedule')) markAvailability(true); });
+  $('[data-panel="availability"] .cols').addEventListener('change', function (e) { if (!e.target.closest('#schedule')) markAvailability(true); });
+  $('[data-panel="availability"] .cols').addEventListener('click', function (e) {
+    if (e.target.closest('#add-type, #types [data-remove], #g-addcal, [data-gremove]')) markAvailability(true);
+  });
+
+  // Copies the availability forms into `settings` (before saving, or before redrawing them in another language)
+  function readAvailabilityForm() {
     readTypes();
     readGoogle();
     settings.hours = $$('#hours .hour').map(function (row) {
@@ -644,6 +711,10 @@
       return on ? { start: t[0].value, end: t[1].value } : null;
     });
     ['slotStep', 'bufferMinutes', 'minNoticeHours', 'maxDaysAhead', 'retentionDays'].forEach(function (k) { settings[k] = Number($('#' + k).value); });
+  }
+
+  $('#save-availability').addEventListener('click', function () {
+    readAvailabilityForm();
     var today = new Date().toISOString().slice(0, 10);
     settings.blockedDates = settings.blockedDates.filter(function (d) { return d >= addDays(today, -1); });
     settings.blockedTimes = settings.blockedTimes.filter(function (b) { return b.date >= addDays(today, -1); });
@@ -651,9 +722,12 @@
       settings = s;
       renderAvailability();
       fillTypeSelect();
-      status($('#avail-status'), T('av.saved'));
+      markAvailability(false);
+      var msg = $('#save-bar-msg');
+      msg.textContent = T('av.saved');
+      setTimeout(function () { if (!avDirty) msg.textContent = T('av.saveHint'); }, 4000);
       loadSchedule();
-    }).catch(function (e) { status($('#avail-status'), e.message, true); });
+    }).catch(function (e) { $('#save-bar-msg').textContent = e.message; });
   });
 
   // ---------- clinic details ----------

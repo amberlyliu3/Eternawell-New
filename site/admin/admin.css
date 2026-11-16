@@ -217,3 +217,13 @@ main { padding: 28px max(16px, 3vw) 64px; }
 .g-cal-result:empty { display: none; }
 .g-addcal { justify-self: start; }
 @media (max-width: 560px) { .g-cal .grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Save bar at the bottom of Availability */
+.save-bar {
+  position: sticky; bottom: 0; z-index: 4; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px;
+  margin-top: 4px; padding: 14px 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px 6px 0 0;
+  box-shadow: 0 -8px 24px rgba(23, 22, 20, 0.08); font-size: 15px; color: var(--ink-2);
+}
+.save-bar p { flex: 1 1 320px; }
+.save-bar.dirty { background: #fff4d6; border-color: #8a5300; color: #5c3900; font-weight: 600; }
+.save-bar .btn { min-width: 170px; }

@@ -851,7 +851,9 @@ export default {
       if (url.pathname.startsWith('/api/')) return await api(request, env, url);
       if (url.pathname.startsWith('/media/')) return await media(env, url.pathname.slice(7));
       if (url.pathname.startsWith('/admin')) {
-        const res = await env.ASSETS.fetch(request);
+        // Each admin section has its own address (/admin/bookings, /admin/availability, …); all of them are the admin page
+        const section = /^\/admin\/(bookings|messages|website|availability|clinic)\/?$/.test(url.pathname);
+        const res = await env.ASSETS.fetch(section ? new Request(new URL('/admin/', url), request) : request);
         const headers = new Headers(res.headers);
         headers.set('x-robots-tag', 'noindex, nofollow');
         headers.set('cache-control', 'no-store');
