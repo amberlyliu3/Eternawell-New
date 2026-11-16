@@ -178,9 +178,9 @@
             <p class="muted" data-i-html="g.shareHint"></p>
             <p class="row"><code id="g-email"></code><button type="button" class="btn ghost sm" id="g-copy" data-i="g.copy">Copy</button></p>
           </div>
-          <label class="field"><span data-i="g.calLabel"></span><input id="g-cal" data-i-ph="g.calPh" spellcheck="false" autocomplete="off"></label>
-          <label class="check"><input type="checkbox" id="g-add"><span data-i="g.add"></span></label>
-          <label class="check"><input type="checkbox" id="g-busy"><span data-i="g.busy"></span></label>
+          <div class="g-cals" id="g-cals"></div>
+          <button type="button" class="btn ghost sm g-addcal" id="g-addcal" data-i="g.addCal">Add a calendar</button>
+          <label class="field"><span data-i="g.bookingCal">Add new bookings to</span><select id="g-booking"></select></label>
           <label class="field"><span data-i="g.detail"></span>
             <select id="g-detail">
               <option value="minimal" data-i="g.minimal"></option>
@@ -189,7 +189,6 @@
           </label>
           <p class="muted" data-i="g.hipaa"></p>
           <div class="row">
-            <button type="button" class="btn ghost" id="g-test" data-i="g.test">Test connection</button>
             <button type="button" class="btn ghost" id="g-sync" data-i="g.sync">Add upcoming bookings to calendar</button>
           </div>
           <p class="status" id="g-result" aria-live="polite"></p>

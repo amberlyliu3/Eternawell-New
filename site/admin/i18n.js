@@ -62,7 +62,10 @@
       'ty.name': 'Name (English)', 'ty.nameZh': 'Name (Chinese)', 'ty.minutes': 'Minutes', 'ty.active': 'Bookable online', 'ty.remove': 'Remove', 'ty.new': 'New visit type',
       'av.rules': 'Booking rules', 'av.step': 'Start times every (minutes)', 'av.buffer': 'Gap between visits (minutes)', 'av.notice': 'Minimum notice (hours)',
       'av.ahead': 'Book up to (days ahead)', 'av.retention': 'Delete past and cancelled bookings after (days)',
-      'g.title': 'Google Calendar', 'g.hint': "Put each booking on the doctor's Google Calendar automatically, and optionally hide times when that calendar is busy (for example EZCall shifts).",
+      'g.addCal': 'Add a calendar', 'g.calName': 'Name (only you see it)', 'g.calNamePh': 'e.g. Personal, EZCall', 'g.calId': 'Calendar ID',
+      'g.calBusy': 'Block these busy times from online booking', 'g.removeCal': 'Remove', 'g.bookingCal': 'Add new bookings to', 'g.noBookingCal': "Don't add bookings to a calendar",
+      'g.noCals': 'No calendars connected yet. Click Add a calendar.', 'g.noCalsYet': 'Key added. Add a calendar below, then test it.', 'g.calN': 'Calendar {0}',
+      'g.title': 'Google Calendar', 'g.hint': "Connect one or more Google Calendars. Busy times on a calendar (for example the doctor's personal calendar or EZCall shifts) can be hidden from online booking, and new bookings can be added to one of them automatically. Share every calendar with the address below.",
       'g.shareHint': 'In Google Calendar, share the calendar with this address and choose <b>Make changes to events</b>:', 'g.copy': 'Copy', 'g.copied': 'Copied.',
       'g.calLabel': 'Calendar ID (Google Calendar → Settings → your calendar → Integrate calendar)', 'g.calPh': 'name@gmail.com or …@group.calendar.google.com',
       'g.add': 'Add each booking to this calendar', 'g.busy': 'Hide times when this calendar is busy', 'g.detail': 'What the calendar event shows',
@@ -138,7 +141,10 @@
       'ty.name': '名称（英文）', 'ty.nameZh': '名称（中文）', 'ty.minutes': '分钟', 'ty.active': '可在线预约', 'ty.remove': '删除', 'ty.new': 'New visit type',
       'av.rules': '预约规则', 'av.step': '可预约时间间隔（分钟）', 'av.buffer': '两次就诊之间的间隔（分钟）', 'av.notice': '最少提前预约时间（小时）',
       'av.ahead': '最多可提前预约天数', 'av.retention': '过去和已取消的预约保留天数',
-      'g.title': 'Google 日历', 'g.hint': '自动将每个预约添加到医生的 Google 日历，并可选择在日历忙碌时（例如 EZCall 值班）不开放预约。',
+      'g.addCal': '添加日历', 'g.calName': '名称（仅您可见）', 'g.calNamePh': '例如：个人、EZCall', 'g.calId': '日历 ID',
+      'g.calBusy': '此日历忙碌时不开放在线预约', 'g.removeCal': '删除', 'g.bookingCal': '新预约添加到', 'g.noBookingCal': '不添加到日历',
+      'g.noCals': '还没有连接日历。请点击“添加日历”。', 'g.noCalsYet': '密钥已添加。请在下方添加日历，然后测试。', 'g.calN': '日历 {0}',
+      'g.title': 'Google 日历', 'g.hint': '可以连接一个或多个 Google 日历。日历上的忙碌时间（例如医生的个人日历或 EZCall 值班）可以不开放在线预约，新预约也可以自动添加到其中一个日历。请将每个日历都共享给下方的地址。',
       'g.shareHint': '请在 Google 日历中将日历共享给以下地址，并选择<b>更改活动</b>权限：', 'g.copy': '复制', 'g.copied': '已复制。',
       'g.calLabel': '日历 ID（Google 日历 → 设置 → 您的日历 → 集成日历）', 'g.calPh': 'name@gmail.com 或 …@group.calendar.google.com',
       'g.add': '将每个预约添加到此日历', 'g.busy': '此日历忙碌时不开放预约', 'g.detail': '日历活动显示的内容',
@@ -183,6 +189,7 @@
     [/^Google Calendar refused the update \((.*)\)\..*$/, 'Google 日历拒绝了更新（$1）。请检查日历 ID，并确认日历已以“更改活动”权限共享给服务账号。'],
     [/^Google rejected the service account key \((.*)\)\.$/, 'Google 拒绝了服务账号密钥（$1）。'],
     [/^Google can't read this calendar's busy times \((.*)\)\..*$/, 'Google 无法读取此日历的忙碌时间（$1）。请确认日历已共享给服务账号。'],
+    [/^Google can't read busy times for: (.*)\. Check each calendar is shared with the service account\.$/, 'Google 无法读取以下日历的忙碌时间：$1。请确认每个日历都已共享给服务账号。'],
   ];
 
   function get() {

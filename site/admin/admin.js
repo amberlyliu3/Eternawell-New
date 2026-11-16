@@ -328,34 +328,80 @@
   // ---------- Google Calendar ----------
   function renderGoogle() {
     var g = settings.google;
-    $('#g-cal').value = g.calendarId;
-    $('#g-add').checked = g.addEvents;
-    $('#g-busy').checked = g.blockBusy;
+    renderCals(g.calendars);
+    fillBookingCal(g.bookingCalendar);
     $('#g-detail').value = g.detail;
     api('/api/admin/google').then(function (d) {
       var st = $('#g-status');
       $('#g-share').hidden = !d.keyAdded;
       $('#g-email').textContent = d.serviceEmail;
       if (!d.keyAdded) { st.textContent = T('g.noKey'); st.className = 'g-status bad'; return; }
-      if (!g.calendarId) { st.textContent = T('g.noCal'); st.className = 'g-status'; return; }
+      if (!g.calendars.length) { st.textContent = T('g.noCalsYet'); st.className = 'g-status'; return; }
       if (d.status && !d.status.ok) { st.textContent = T('g.problemAt', I.srv(d.status.message), fmtStamp(d.status.at)); st.className = 'g-status bad'; return; }
       st.textContent = T('g.connected') + (d.status ? ' · ' + I.srv(d.status.message) : '.'); st.className = 'g-status good';
     });
   }
-  function readGoogle() {
-    settings.google = { calendarId: $('#g-cal').value.trim(), addEvents: $('#g-add').checked, blockBusy: $('#g-busy').checked, detail: $('#g-detail').value };
+  // One row per connected calendar: name, calendar ID, "block busy times", test and remove
+  function renderCals(cals) {
+    $('#g-cals').innerHTML = cals.length ? cals.map(function (c, i) {
+      return '<div class="g-cal" data-row="' + i + '">' +
+        '<div class="grid">' +
+        '<label class="field"><span>' + T('g.calName') + '</span><input data-k="label" value="' + esc(c.label) + '" placeholder="' + esc(T('g.calNamePh')) + '"></label>' +
+        '<label class="field"><span>' + T('g.calId') + '</span><input data-k="id" value="' + esc(c.id) + '" placeholder="' + esc(T('g.calPh')) + '" spellcheck="false" autocomplete="off"></label>' +
+        '</div>' +
+        '<label class="check"><input type="checkbox" data-k="busy"' + (c.busy ? ' checked' : '') + '><span>' + T('g.calBusy') + '</span></label>' +
+        '<div class="row"><button type="button" class="btn ghost sm" data-gtest>' + T('g.test') + '</button><button type="button" class="btn ghost sm danger" data-gremove>' + T('g.removeCal') + '</button></div>' +
+        '<p class="status g-cal-result" aria-live="polite"></p></div>';
+    }).join('') : '<p class="muted">' + T('g.noCals') + '</p>';
   }
+  function readCals() {
+    return $$('#g-cals .g-cal').map(function (row) {
+      return { id: $('[data-k="id"]', row).value.trim(), label: $('[data-k="label"]', row).value.trim(), busy: $('[data-k="busy"]', row).checked };
+    });
+  }
+  function fillBookingCal(selected) {
+    var cals = readCals().filter(function (c) { return c.id; });
+    var sel = $('#g-booking');
+    sel.innerHTML = '<option value="">' + esc(T('g.noBookingCal')) + '</option>' + cals.map(function (c, i) {
+      return '<option value="' + esc(c.id) + '">' + esc(c.label || T('g.calN', i + 1)) + '</option>';
+    }).join('');
+    sel.value = cals.some(function (c) { return c.id === selected; }) ? selected : '';
+  }
+  function readGoogle() {
+    settings.google = { calendars: readCals().filter(function (c) { return c.id; }), bookingCalendar: $('#g-booking').value, detail: $('#g-detail').value };
+  }
+  $('#g-addcal').addEventListener('click', function () {
+    var cals = readCals();
+    cals.push({ id: '', label: '', busy: true });
+    var booking = $('#g-booking').value;
+    renderCals(cals);
+    fillBookingCal(booking);
+    $$('#g-cals .g-cal').pop().querySelector('[data-k="label"]').focus();
+  });
+  $('#g-cals').addEventListener('input', function () { fillBookingCal($('#g-booking').value); });
+  $('#g-cals').addEventListener('click', function (e) {
+    var row = e.target.closest('.g-cal');
+    if (!row) return;
+    if (e.target.closest('[data-gremove]')) {
+      var cals = readCals();
+      cals.splice(Number(row.dataset.row), 1);
+      var booking = $('#g-booking').value;
+      renderCals(cals);
+      fillBookingCal(booking);
+      return;
+    }
+    var b = e.target.closest('[data-gtest]');
+    if (!b) return;
+    var out = $('.g-cal-result', row);
+    b.disabled = true;
+    status(out, T('g.testing'));
+    api('/api/admin/google/test', { method: 'POST', body: { calendarId: $('[data-k="id"]', row).value.trim() } })
+      .then(function (d) { out.textContent = I.srv(d.message); out.classList.toggle('is-error', !d.ok); })
+      .catch(function (e2) { status(out, e2.message, true); })
+      .then(function () { b.disabled = false; });
+  });
   $('#g-copy').addEventListener('click', function () {
     navigator.clipboard.writeText($('#g-email').textContent).then(function () { status($('#g-result'), T('g.copied')); });
-  });
-  $('#g-test').addEventListener('click', function () {
-    var b = this;
-    b.disabled = true;
-    status($('#g-result'), T('g.testing'));
-    api('/api/admin/google/test', { method: 'POST', body: { calendarId: $('#g-cal').value.trim() } })
-      .then(function (d) { var el = $('#g-result'); el.textContent = I.srv(d.message); el.classList.toggle('is-error', !d.ok); })
-      .catch(function (e) { status($('#g-result'), e.message, true); })
-      .then(function () { b.disabled = false; });
   });
   $('#g-sync').addEventListener('click', function () {
     var b = this;
@@ -375,7 +421,8 @@
   });
   function dirtyAvailability() {
     var g = settings.google;
-    return $('#g-cal').value.trim() !== g.calendarId || $('#g-add').checked !== g.addEvents || $('#g-busy').checked !== g.blockBusy || $('#g-detail').value !== g.detail;
+    var now = { calendars: readCals().filter(function (c) { return c.id; }), bookingCalendar: $('#g-booking').value, detail: $('#g-detail').value };
+    return JSON.stringify(now) !== JSON.stringify({ calendars: g.calendars, bookingCalendar: g.bookingCalendar, detail: g.detail });
   }
   $('#hours').addEventListener('change', function (e) {
     if (e.target.type !== 'checkbox') return;
@@ -384,7 +431,7 @@
 
   function renderTypes() {
     $('#types').innerHTML = settings.visitTypes.map(function (t, i) {
-      return '<div class="type" data-i="' + i + '" data-id="' + esc(t.id) + '">' +
+      return '<div class="type" data-row="' + i + '" data-id="' + esc(t.id) + '">' +
         '<label class="field"><span>' + T('ty.name') + '</span><input value="' + esc(t.name) + '" data-k="name"></label>' +
         '<label class="field"><span>' + T('ty.nameZh') + '</span><input value="' + esc(t.name_zh || '') + '" data-k="name_zh" lang="zh-Hans"></label>' +
         '<label class="field"><span>' + T('ty.minutes') + '</span><input type="number" min="5" max="480" value="' + t.minutes + '" data-k="minutes"></label>' +
@@ -467,7 +514,7 @@
       if (d.blockedDates.indexOf(ds) !== -1) col += '<div class="sc-dayblock" data-unblock-day="' + ds + '"></div>';
       d.google.filter(function (g) { return g.date === ds; }).forEach(function (g) {
         var s0 = Math.max(g.start, lo), e0 = Math.min(g.end, hi);
-        if (e0 > s0) col += '<div class="sc-ev sc-google" style="top:' + top(s0) + 'px;height:' + Math.max(18, top(e0) - top(s0)) + 'px"><span>' + T('sc.kGoogle') + '</span></div>';
+        if (e0 > s0) col += '<div class="sc-ev sc-google" title="' + esc(T('sc.kGoogle') + ' · ' + g.label) + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, top(e0) - top(s0)) + 'px"><span>' + esc(g.label || T('sc.kGoogle')) + '</span></div>';
       });
       d.blockedTimes.forEach(function (b, bi) {
         if (b.date !== ds) return;

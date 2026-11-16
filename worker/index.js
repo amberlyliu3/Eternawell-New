@@ -32,7 +32,9 @@ const DEFAULT_SETTINGS = {
   blockedTimes: [], // part of a day: { date: 'YYYY-MM-DD', start: 'HH:MM', end: 'HH:MM' }
   retentionDays: 365, // past and cancelled bookings older than this are deleted
   // Google Calendar: the calendar is shared with the service account in GOOGLE_SERVICE_ACCOUNT_KEY
-  google: { calendarId: '', addEvents: true, blockBusy: false, detail: 'minimal' },
+  // calendars: [{ id, label, busy }] – busy: true hides that calendar's busy times from online booking.
+  // bookingCalendar: the calendar ID new bookings are added to ('' for none).
+  google: { calendars: [], bookingCalendar: '', detail: 'minimal' },
 };
 
 // ---------- small helpers ----------
@@ -143,13 +145,16 @@ function cleanSettings(input) {
   }
   if (input.google && typeof input.google === 'object') {
     const g = input.google;
-    const id = String(g.calendarId || '').trim().slice(0, 300);
-    s.google = {
-      calendarId: /^[^\s"'<>]*$/.test(id) ? id : '',
-      addEvents: g.addEvents !== false,
-      blockBusy: g.blockBusy === true,
-      detail: g.detail === 'full' ? 'full' : 'minimal',
-    };
+    const okId = (v) => { const id = String(v || '').trim().slice(0, 300); return /^[^\s"'<>]+$/.test(id) ? id : ''; };
+    // Settings saved before multiple calendars had a single calendarId
+    let cals = Array.isArray(g.calendars) ? g.calendars : g.calendarId ? [{ id: g.calendarId, label: '', busy: g.blockBusy === true }] : [];
+    const seen = new Set();
+    cals = cals.slice(0, 10)
+      .map((c) => ({ id: okId(c && c.id), label: String((c && c.label) || '').trim().slice(0, 60), busy: !!(c && c.busy) }))
+      .filter((c) => c.id && !seen.has(c.id) && seen.add(c.id));
+    let booking = 'bookingCalendar' in g ? okId(g.bookingCalendar) : g.calendarId && g.addEvents !== false ? okId(g.calendarId) : '';
+    if (!cals.some((c) => c.id === booking)) booking = '';
+    s.google = { calendars: cals, bookingCalendar: booking, detail: g.detail === 'full' ? 'full' : 'minimal' };
   }
   return s;
 }
@@ -345,11 +350,12 @@ export class Store extends DurableObject {
     this.sql.exec("INSERT INTO kv (k, v) VALUES ('google_status', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", JSON.stringify({ ok, message: String(message || '').slice(0, 300), at: Date.now() }));
   }
 
-  // Busy times on the doctor's calendar between two dates, as wall-clock minute ranges. Cached for a minute.
+  // Busy times on the connected calendars between two dates, as wall-clock minute ranges
+  // [start, end, calendar name]. Cached for a minute.
   async googleBusy(settings, from, to, fresh = false) {
-    const g = settings.google;
-    if (!g.blockBusy || !g.calendarId || !serviceAccount(this.env)) return [];
-    const key = `${g.calendarId}|${from}|${to}`;
+    const cals = settings.google.calendars.filter((c) => c.busy);
+    if (!cals.length || !serviceAccount(this.env)) return [];
+    const key = `${cals.map((c) => c.id).join(',')}|${from}|${to}`;
     const hit = this.busyCache.get(key);
     if (!fresh && hit && Date.now() - hit.at < 60e3) return hit.ranges;
     try {
@@ -358,15 +364,20 @@ export class Store extends DurableObject {
         timeMin: new Date((dayNum(from) - 1) * 864e5).toISOString(),
         timeMax: new Date((dayNum(to) + 2) * 864e5).toISOString(),
         timeZone: TZ,
-        items: [{ id: g.calendarId }],
+        items: cals.map((c) => ({ id: c.id })),
       });
-      const cal = (d.calendars || {})[g.calendarId] || {};
-      if (cal.errors && cal.errors.length) throw new Error(`Google can't read this calendar's busy times (${cal.errors[0].reason}). Check it is shared with the service account.`);
-      const ranges = (cal.busy || []).map((x) => {
-        const a = laParts(Date.parse(x.start));
-        const b = laParts(Date.parse(x.end));
-        return [absMin(a.date, a.min), absMin(b.date, b.min)];
-      });
+      const ranges = [];
+      const failed = [];
+      for (const c of cals) {
+        const cal = (d.calendars || {})[c.id] || {};
+        if (cal.errors && cal.errors.length) { failed.push(`${c.label || c.id} (${cal.errors[0].reason})`); continue; }
+        for (const x of cal.busy || []) {
+          const a = laParts(Date.parse(x.start));
+          const b = laParts(Date.parse(x.end));
+          ranges.push([absMin(a.date, a.min), absMin(b.date, b.min), c.label || c.id]);
+        }
+      }
+      if (failed.length) this.noteGoogle(false, `Google can't read busy times for: ${failed.join(', ')}. Check each calendar is shared with the service account.`);
       this.busyCache.set(key, { at: Date.now(), ranges });
       if (this.busyCache.size > 50) this.busyCache.delete(this.busyCache.keys().next().value);
       return ranges;
@@ -383,15 +394,15 @@ export class Store extends DurableObject {
     const g = this.getSettings().google;
     if (!serviceAccount(this.env)) return;
     try {
-      const wanted = b.status !== 'cancelled' && g.addEvents && g.calendarId;
-      if (b.gcal_id && (!wanted || b.gcal_cal !== g.calendarId)) {
+      const wanted = b.status !== 'cancelled' && g.bookingCalendar;
+      if (b.gcal_id && (!wanted || b.gcal_cal !== g.bookingCalendar)) {
         await gcal(this.env, 'DELETE', `${calPath(b.gcal_cal)}/events/${encodeURIComponent(b.gcal_id)}`);
         this.sql.exec("UPDATE bookings SET gcal_id = '', gcal_cal = '' WHERE id = ?", id);
         b.gcal_id = '';
       }
       if (wanted && !b.gcal_id) {
-        const ev = await gcal(this.env, 'POST', `${calPath(g.calendarId)}/events`, eventFor(b, g.detail, origin));
-        this.sql.exec('UPDATE bookings SET gcal_id = ?, gcal_cal = ? WHERE id = ?', ev.id || '', g.calendarId, id);
+        const ev = await gcal(this.env, 'POST', `${calPath(g.bookingCalendar)}/events`, eventFor(b, g.detail, origin));
+        this.sql.exec('UPDATE bookings SET gcal_id = ?, gcal_cal = ? WHERE id = ?', ev.id || '', g.bookingCalendar, id);
       }
       this.busyCache.clear(); // the calendar changed
       this.noteGoogle(true, 'Last calendar update worked.');
@@ -520,12 +531,12 @@ export class Store extends DurableObject {
     const s = this.getSettings();
     const bookings = this.sql.exec("SELECT id, date, start, minutes, type, type_name, mode, name, phone, email, status, source FROM bookings WHERE date >= ? AND date <= ? AND status IN ('confirmed', 'completed') ORDER BY date, start", from, to).toArray();
     const google = [];
-    for (const [a, b] of await this.googleBusy(s, from, to)) {
+    for (const [a, b, label] of await this.googleBusy(s, from, to)) {
       // split ranges that cross midnight into one piece per day
       for (let d = Math.floor(a / 1440); d * 1440 < b; d++) {
         const date = dateOf(d);
         if (date < from || date > to) continue;
-        google.push({ date, start: Math.max(a, d * 1440) - d * 1440, end: Math.min(b, (d + 1) * 1440) - d * 1440 });
+        google.push({ date, start: Math.max(a, d * 1440) - d * 1440, end: Math.min(b, (d + 1) * 1440) - d * 1440, label });
       }
     }
     return { bookings, blockedDates: s.blockedDates, blockedTimes: s.blockedTimes, hours: s.hours, google, today: nowLA().date };

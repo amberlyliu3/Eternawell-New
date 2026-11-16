@@ -209,3 +209,11 @@ main { padding: 28px max(16px, 3vw) 64px; }
 .sc-x { position: absolute; top: 6px; right: 8px; width: 30px; height: 30px; border: 0; background: none; font-size: 20px; color: var(--ink-3); cursor: pointer; }
 .sc-ev.short { padding: 1px 6px; line-height: 1.25; }
 .sc-ev.short span { display: none; }
+
+/* Connected Google calendars */
+.g-cals { display: grid; gap: 10px; }
+.g-cal { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--deep); }
+.g-cal .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+.g-cal-result:empty { display: none; }
+.g-addcal { justify-self: start; }
+@media (max-width: 560px) { .g-cal .grid { grid-template-columns: minmax(0, 1fr); } }
