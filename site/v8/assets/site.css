@@ -476,7 +476,7 @@ footer { border-top: 1px solid var(--line); background: var(--deep); overflow: h
 .bk-nav:disabled { opacity: 0.35; cursor: default; }
 .bk-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; text-align: center; }
 .bk-grid > span { font-size: 12px; font-weight: 600; color: var(--ink-3); padding-bottom: 4px; }
-.bk-day { aspect-ratio: 1; min-height: 40px; border: 1px solid rgba(138, 105, 48, 0.45); border-radius: 50%; background: #f6ecd8; font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.bk-day { aspect-ratio: 1; min-height: 40px; border: 1px solid #957338; /* 3:1 or more against the page and the fill */ border-radius: 50%; background: #f6ecd8; font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); cursor: pointer; }
 .bk-day:hover { border-color: var(--em); }
 .bk-day:disabled { background: transparent; border-color: transparent; color: var(--ink-3); font-weight: 400; cursor: default; text-decoration: line-through; text-decoration-color: rgba(23, 22, 20, 0.25); }
 .bk-day.on { background: var(--btn); color: #fff; }

@@ -695,7 +695,7 @@
       d.google.filter(function (g) { return g.date === ds; }).forEach(function (g) {
         var s0 = Math.max(g.start, lo), e0 = Math.min(g.end, hi);
         var kind = g.src === 'apple' ? 'sc.kApple' : 'sc.kGoogle';
-        if (e0 > s0) col += '<div class="sc-ev sc-google' + (g.src === 'apple' ? ' sc-apple' : '') + '" title="' + esc(T(kind) + ' · ' + g.label) + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, top(e0) - top(s0)) + 'px"><span>' + esc(g.label || T(kind)) + '</span></div>';
+        if (e0 > s0) col += '<div class="sc-ev sc-google' + (g.src === 'apple' ? ' sc-apple' : '') + '" title="' + esc(T(kind) + ' · ' + g.label) + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, top(e0) - top(s0)) + 'px"><span>' + (g.src === 'apple' ? 'Apple' : 'Google') + ' · ' + esc(g.label || T(kind)) + '</span></div>';
       });
       d.blockedTimes.forEach(function (b, bi) {
         if (b.date !== ds) return;
@@ -707,7 +707,7 @@
       d.bookings.forEach(function (b, bi) {
         if (b.date !== ds) return;
         var hk = top(b.start + b.minutes) - top(b.start);
-        col += '<button type="button" class="sc-ev sc-book' + (b.status === 'completed' ? ' done' : '') + (hk < 36 ? ' short' : '') + '" data-booking="' + bi + '" style="top:' + top(b.start) + 'px;height:' + Math.max(18, hk) + 'px"><b>' + fmtTime(b.start) + ' ' + esc(b.name) + '</b><span>' + esc(typeName(b.type, b.type_name)) + '</span></button>';
+        col += '<button type="button" class="sc-ev sc-book' + (b.status === 'completed' ? ' done' : '') + (hk < 36 ? ' short' : '') + '" data-booking="' + bi + '" style="top:' + top(b.start) + 'px;height:' + Math.max(18, hk) + 'px"' + (b.status === 'completed' ? ' title="' + esc(T('st.completed')) + '"' : '') + '><b>' + (b.status === 'completed' ? '✓ ' : '') + fmtTime(b.start) + ' ' + esc(b.name) + '</b><span>' + esc(typeName(b.type, b.type_name)) + '</span></button>';
       });
       return col + '</div>';
     }).join('') + '</div>';
