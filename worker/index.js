@@ -711,31 +711,47 @@ export class Store extends DurableObject {
     const acct = appleAccount(this.env);
     if (!acct) return { ok: false, message: 'The Apple ID and app-specific password have not been added to Cloudflare yet (secrets APPLE_ID and APPLE_APP_PASSWORD).' };
     try {
+      const props = '<d:displayname/><d:resourcetype/><c:supported-calendar-component-set/><a:calendar-color/>';
+      const find = async (home) => {
+        if (!home) {
+          const base = this.env.APPLE_CALDAV_URL || APPLE_CALDAV;
+          const p1 = await propfind(this.env, base, 0, '<d:current-user-principal/>');
+          const principal = xmlTag(xmlBlocks(p1.text, 'current-user-principal')[0] || '', 'href');
+          if (!principal) throw new Error("iCloud didn't say where this account's calendars are.");
+          const p2 = await propfind(this.env, new URL(principal, p1.url).href, 0, '<c:calendar-home-set/>');
+          const homeHref = xmlTag(xmlBlocks(p2.text, 'calendar-home-set')[0] || '', 'href');
+          if (!homeHref) throw new Error("iCloud didn't say where this account's calendars are.");
+          home = new URL(homeHref, p2.url).href;
+          this.sql.exec("INSERT INTO kv (k, v) VALUES ('apple_home', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", JSON.stringify({ id: acct.id, url: home }));
+        }
+        const r = await propfind(this.env, home, 1, props);
+        const responses = xmlBlocks(r.text, 'response');
+        const calendars = responses.map((x) => {
+          const type = xmlBlocks(x, 'resourcetype')[0] || '';
+          const comps = xmlBlocks(x, 'supported-calendar-component-set')[0];
+          if (!/<(?:[\w-]+:)?calendar(?=[\s/>])/i.test(type)) return null;
+          if (comps && /comp\b/i.test(comps) && !/name\s*=\s*["']VEVENT["']/i.test(comps)) return null; // reminders lists
+          return { url: new URL(xmlTag(x, 'href'), r.url).href, name: xmlTag(x, 'displayname') || 'Calendar', color: (xmlTag(x, 'calendar-color').match(/^#[0-9a-f]{6}/i) || [''])[0] };
+        }).filter(Boolean);
+        // What iCloud listed (folder names and kinds only), to explain an empty list
+        const listed = responses.map((x) => {
+          const name = decodeURIComponent(xmlTag(x, 'href').replace(/\/$/, '').split('/').pop() || '');
+          const kinds = [...(xmlBlocks(x, 'resourcetype')[0] || '').matchAll(/<(?:[\w-]+:)?([\w-]+)/g)].map((m) => m[1]).join('+');
+          return `${name || '/'} (${kinds || 'no type'})`;
+        });
+        return { calendars, listed };
+      };
       const row = this.sql.exec("SELECT v FROM kv WHERE k = 'apple_home'").toArray()[0];
       const saved = row ? JSON.parse(row.v) : null;
-      let home = saved && saved.id === acct.id ? saved.url : '';
-      let r;
-      if (home) r = await propfind(this.env, home, 1, '<d:displayname/><d:resourcetype/><c:supported-calendar-component-set/><a:calendar-color/>').catch((err) => { if (err.status === 401) throw err; return null; });
-      if (!r) {
-        const base = this.env.APPLE_CALDAV_URL || APPLE_CALDAV;
-        const p1 = await propfind(this.env, base, 0, '<d:current-user-principal/>');
-        const principal = xmlTag(xmlBlocks(p1.text, 'current-user-principal')[0] || '', 'href');
-        if (!principal) throw new Error("iCloud didn't say where this account's calendars are.");
-        const p2 = await propfind(this.env, new URL(principal, p1.url).href, 0, '<c:calendar-home-set/>');
-        const homeHref = xmlTag(xmlBlocks(p2.text, 'calendar-home-set')[0] || '', 'href');
-        if (!homeHref) throw new Error("iCloud didn't say where this account's calendars are.");
-        home = new URL(homeHref, p2.url).href;
-        this.sql.exec("INSERT INTO kv (k, v) VALUES ('apple_home', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", JSON.stringify({ id: acct.id, url: home }));
-        r = await propfind(this.env, home, 1, '<d:displayname/><d:resourcetype/><c:supported-calendar-component-set/><a:calendar-color/>');
+      let found = saved && saved.id === acct.id ? await find(saved.url).catch((err) => { if (err.status === 401) throw err; return null; }) : null;
+      if (!found || !found.calendars.length) found = await find(''); // look the calendars up again from the start
+      const { calendars } = found;
+      if (!calendars.length) {
+        const message = `Connected, but iCloud listed no calendars with events. It listed: ${found.listed.join(', ').slice(0, 200) || 'nothing'}.`;
+        this.noteCal('apple', false, message);
+        return { ok: true, calendars, message };
       }
-      const calendars = xmlBlocks(r.text, 'response').map((x) => {
-        const type = xmlBlocks(x, 'resourcetype')[0] || '';
-        const comps = xmlBlocks(x, 'supported-calendar-component-set')[0];
-        if (!/<(?:[\w-]+:)?calendar(?=[\s/>])/i.test(type)) return null;
-        if (comps !== undefined && /comp\b/i.test(comps) && !/name="VEVENT"/i.test(comps)) return null; // reminders lists
-        return { url: new URL(xmlTag(x, 'href'), r.url).href, name: xmlTag(x, 'displayname') || 'Calendar', color: (xmlTag(x, 'calendar-color').match(/^#[0-9a-f]{6}/i) || [''])[0] };
-      }).filter(Boolean);
-      this.noteCal('apple', true, calendars.length ? 'Connected to iCloud.' : 'Connected, but there are no calendars in this iCloud account.');
+      this.noteCal('apple', true, 'Connected to iCloud.');
       return { ok: true, calendars };
     } catch (err) {
       this.noteCal('apple', false, err.message);

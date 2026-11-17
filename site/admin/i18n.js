@@ -215,6 +215,7 @@
     [/^iCloud can't read busy times for: (.*)\.$/, 'iCloud 无法读取以下日历的忙碌时间：$1。'],
     [/^iCloud refused the update \((.*)\)\..*$/, 'iCloud 拒绝了更新（$1）。请确认该日历仍然存在且不是只读。'],
     [/^iCloud error (\d+)$/, 'iCloud 错误 $1'],
+    [/^Connected, but iCloud listed no calendars with events\. It listed: (.*)\.$/, '已连接，但 iCloud 没有列出任何含活动的日历。iCloud 列出的是：$1。'],
     [/^Connected to "(.*)"\. Bookings can now be added to this calendar\.$/, '已连接到“$1”。现在可以将预约添加到此日历。'],
     [/^Connected to "(.*)", but it's shared as "(.*)"\. Change the sharing permission to "Make changes to events"\.$/, '已连接到“$1”，但共享权限是“$2”。请将共享权限改为“更改活动”。'],
     [/^Google can't find that calendar\. Check the calendar ID, and that the calendar is shared with (.*)\.$/, 'Google 找不到该日历。请检查日历 ID，并确认已将日历共享给 $1。'],

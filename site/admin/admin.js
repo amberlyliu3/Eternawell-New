@@ -561,7 +561,8 @@
         var current = $$('#ap-cals .ap-cal').length ? appleForm() : settings.apple;
         appleFound = d.calendars;
         renderAppleCals(appleRows(current), current.bookingCalendar);
-        status($('#ap-result'), T('ap.found', d.calendars.length));
+        if (d.message) status($('#ap-result'), I.srv(d.message), true);
+        else status($('#ap-result'), T('ap.found', d.calendars.length));
       })
       .catch(function (e) { status($('#ap-result'), e.message, true); })
       .then(function () { b.disabled = false; });
