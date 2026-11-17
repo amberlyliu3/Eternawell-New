@@ -135,9 +135,13 @@
     <section class="panel" data-panel="availability" hidden>
       <div class="panel-head">
         <h1 data-i="av.title">Availability</h1>
+        <div class="seg" role="group" id="av-view" data-i-aria="av.viewAria">
+          <button type="button" data-av="schedule" aria-pressed="true" data-i="av.vSchedule">Schedule</button>
+          <button type="button" data-av="settings" aria-pressed="false" data-i="av.vSettings">Settings</button>
+        </div>
       </div>
       <p class="status" id="avail-status" aria-live="polite"></p>
-      <div class="cols">
+      <div class="av-pane" data-avpane="schedule">
         <div class="card sched-card" id="schedule">
           <div class="sched-head">
             <h2 data-i="sc.title">Schedule</h2>
@@ -179,48 +183,8 @@
           <p class="legend"><span class="k k-book"></span><span data-i="sc.kBooking">Booking</span> <span class="k k-block"></span><span data-i="sc.kBlocked">Blocked</span> <span class="k k-google"></span><span data-i="sc.kGoogle">Busy in Google Calendar</span> <span class="k k-apple"></span><span data-i="sc.kApple">Apple Calendar event</span> <span class="k k-closed"></span><span data-i="sc.kClosed">Closed</span></p>
           <div class="sc-pop" id="sc-pop" role="dialog" aria-modal="false" hidden></div>
         </div>
-        <div class="card" id="google">
-          <h2 data-i="g.title">Google Calendar</h2>
-          <p class="muted" data-i="g.hint"></p>
-          <p class="g-status" id="g-status" aria-live="polite"></p>
-          <div class="g-share" id="g-share" hidden>
-            <p class="muted" data-i-html="g.shareHint"></p>
-            <p class="row"><code id="g-email"></code><button type="button" class="btn ghost sm" id="g-copy" data-i="g.copy">Copy</button></p>
-          </div>
-          <div class="g-cals" id="g-cals"></div>
-          <button type="button" class="btn ghost sm g-addcal" id="g-addcal" data-i="g.addCal">Add a calendar</button>
-          <label class="field"><span data-i="g.bookingCal">Add new bookings to</span><select id="g-booking"></select></label>
-          <label class="field"><span data-i="g.detail"></span>
-            <select id="g-detail">
-              <option value="minimal" data-i="g.minimal"></option>
-              <option value="full" data-i="g.full"></option>
-            </select>
-          </label>
-          <p class="muted" data-i="g.hipaa"></p>
-          <div class="row">
-            <button type="button" class="btn ghost" id="g-sync" data-i="g.sync">Add upcoming bookings to calendar</button>
-          </div>
-          <p class="status" id="g-result" aria-live="polite"></p>
-          <p class="muted" data-i-html="g.saveNote"></p>
-        </div>
-        <div class="card" id="apple">
-          <h2 data-i="ap.title">Apple Calendar (iCloud)</h2>
-          <p class="muted" data-i="ap.hint"></p>
-          <p class="g-status" id="ap-status" aria-live="polite"></p>
-          <details class="ap-setup" id="ap-setup">
-            <summary data-i="ap.setupTitle">How to connect</summary>
-            <ol data-i-html="ap.steps"></ol>
-          </details>
-          <div class="g-cals" id="ap-cals"></div>
-          <button type="button" class="btn ghost sm g-addcal" id="ap-find" data-i="ap.find">Find my calendars</button>
-          <label class="field"><span data-i="g.bookingCal">Add new bookings to</span><select id="ap-booking"></select></label>
-          <p class="muted" data-i="ap.privacy"></p>
-          <div class="row">
-            <button type="button" class="btn ghost" id="ap-sync" data-i="g.sync">Add upcoming bookings to calendar</button>
-          </div>
-          <p class="status" id="ap-result" aria-live="polite"></p>
-          <p class="muted" data-i-html="g.saveNote"></p>
-        </div>
+      </div>
+      <div class="cols av-pane" data-avpane="settings" hidden>
         <div class="card">
           <h2 data-i="av.hours">Weekly hours</h2>
           <p class="muted" data-i="av.hoursHint"></p>
@@ -240,6 +204,51 @@
             <label class="field"><span data-i="av.notice"></span><input type="number" id="minNoticeHours" min="0" max="336"></label>
             <label class="field"><span data-i="av.ahead"></span><input type="number" id="maxDaysAhead" min="1" max="365"></label>
             <label class="field wide"><span data-i="av.retention"></span><input type="number" id="retentionDays" min="30" max="3650"></label>
+          </div>
+        </div>
+        <div class="av-cals">
+          <h2 class="av-group" data-i="av.calendars">Connected calendars</h2>
+          <div class="card" id="google">
+            <h2 data-i="g.title">Google Calendar</h2>
+            <p class="muted" data-i="g.hint"></p>
+            <p class="g-status" id="g-status" aria-live="polite"></p>
+            <div class="g-share" id="g-share" hidden>
+              <p class="muted" data-i-html="g.shareHint"></p>
+              <p class="row"><code id="g-email"></code><button type="button" class="btn ghost sm" id="g-copy" data-i="g.copy">Copy</button></p>
+            </div>
+            <div class="g-cals" id="g-cals"></div>
+            <button type="button" class="btn ghost sm g-addcal" id="g-addcal" data-i="g.addCal">Add a calendar</button>
+            <label class="field"><span data-i="g.bookingCal">Add new bookings to</span><select id="g-booking"></select></label>
+            <label class="field"><span data-i="g.detail"></span>
+              <select id="g-detail">
+                <option value="minimal" data-i="g.minimal"></option>
+                <option value="full" data-i="g.full"></option>
+              </select>
+            </label>
+            <p class="muted" data-i="g.hipaa"></p>
+            <div class="row">
+              <button type="button" class="btn ghost" id="g-sync" data-i="g.sync">Add upcoming bookings to calendar</button>
+            </div>
+            <p class="status" id="g-result" aria-live="polite"></p>
+            <p class="muted" data-i-html="g.saveNote"></p>
+          </div>
+          <div class="card" id="apple">
+            <h2 data-i="ap.title">Apple Calendar (iCloud)</h2>
+            <p class="muted" data-i="ap.hint"></p>
+            <p class="g-status" id="ap-status" aria-live="polite"></p>
+            <details class="ap-setup" id="ap-setup">
+              <summary data-i="ap.setupTitle">How to connect</summary>
+              <ol data-i-html="ap.steps"></ol>
+            </details>
+            <div class="g-cals" id="ap-cals"></div>
+            <button type="button" class="btn ghost sm g-addcal" id="ap-find" data-i="ap.find">Find my calendars</button>
+            <label class="field"><span data-i="g.bookingCal">Add new bookings to</span><select id="ap-booking"></select></label>
+            <p class="muted" data-i="ap.privacy"></p>
+            <div class="row">
+              <button type="button" class="btn ghost" id="ap-sync" data-i="g.sync">Add upcoming bookings to calendar</button>
+            </div>
+            <p class="status" id="ap-result" aria-live="polite"></p>
+            <p class="muted" data-i-html="g.saveNote"></p>
           </div>
         </div>
       </div>

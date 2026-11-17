@@ -12,6 +12,7 @@
   var mview = 'all';
   var lastPage = 'home';
   var view = 'upcoming';
+  var avView = 'schedule'; // Availability: 'schedule' or 'settings'
   var bookings = [];
   var dirtyCount = 0;
 
@@ -95,6 +96,7 @@
     if (tab === 'website') return '/admin/website?lang=' + siteLang + '&page=' + $('#page').value;
     if (tab === 'bookings' && view !== 'upcoming') return '/admin/bookings?view=' + view;
     if (tab === 'messages' && mview !== 'all') return '/admin/messages?view=' + mview;
+    if (tab === 'availability' && avView !== 'schedule') return '/admin/availability?view=' + avView;
     return '/admin/' + tab;
   }
   function setUrl(tab, push) {
@@ -109,6 +111,7 @@
     var v = q.get('view');
     view = tab === 'bookings' && ['upcoming', 'past', 'cancelled', 'all'].indexOf(v) !== -1 ? v : 'upcoming';
     mview = tab === 'messages' && ['all', 'new', 'read'].indexOf(v) !== -1 ? v : 'all';
+    showAvView(tab === 'availability' && v === 'settings' ? 'settings' : 'schedule');
     $$('.seg button[data-view]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.view === view)); });
     $$('[data-mview]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.mview === mview)); });
     if (tab === 'website') {
@@ -366,6 +369,21 @@
   });
 
   // ---------- availability ----------
+  // Two views: the Schedule (week calendar) and Settings (hours, visit types, rules, connected calendars)
+  function showAvView(v) {
+    avView = v;
+    $$('#av-view button').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.av === v)); });
+    $$('[data-avpane]').forEach(function (p) { p.hidden = p.dataset.avpane !== v; });
+    $('[data-panel="availability"]').classList.toggle('on-schedule', v === 'schedule');
+  }
+  $$('#av-view button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.dataset.av === avView) return;
+      showAvView(b.dataset.av);
+      setUrl('availability', true);
+      if (avView === 'schedule') loadSchedule();
+    });
+  });
   function renderAvailability() {
     ['slotStep', 'bufferMinutes', 'minNoticeHours', 'maxDaysAhead', 'retentionDays'].forEach(function (k) { $('#' + k).value = settings[k]; });
     $('#hours').innerHTML = T('days').map(function (d, i) {

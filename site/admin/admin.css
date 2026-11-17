@@ -163,6 +163,12 @@ main { padding: 28px max(16px, 3vw) 64px; }
 
 /* Schedule: week view like Google Calendar */
 .sched-card { grid-column: 1 / -1; position: relative; }
+/* Availability → Settings: connected calendars come last, as their own group */
+.av-cals { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 18px; align-items: start; }
+.av-group { grid-column: 1 / -1; margin: 10px 0 -4px; }
+.panel-head .seg { flex: none; }
+/* the Schedule saves by itself, so the save bar only shows there when Settings have unsaved changes */
+.on-schedule .save-bar:not(.dirty) { display: none; }
 .sched-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .sched-nav { align-items: center; }
 .sched-nav b { min-width: 170px; text-align: center; font-size: 15px; }
