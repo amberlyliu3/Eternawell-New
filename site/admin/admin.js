@@ -377,6 +377,7 @@
     renderTypes();
     renderSchedule();
     renderGoogle();
+    renderApple();
   }
 
   // ---------- Google Calendar ----------
@@ -487,8 +488,105 @@
   function dirtyAvailability() {
     var g = settings.google;
     var now = { calendars: readCals().filter(function (c) { return c.id; }), bookingCalendar: $('#g-booking').value, detail: $('#g-detail').value };
-    return JSON.stringify(now) !== JSON.stringify({ calendars: g.calendars, bookingCalendar: g.bookingCalendar, detail: g.detail });
+    return JSON.stringify(now) !== JSON.stringify({ calendars: g.calendars, bookingCalendar: g.bookingCalendar, detail: g.detail }) ||
+      JSON.stringify(appleForm()) !== JSON.stringify(settings.apple);
   }
+
+  // ---------- Apple Calendar (iCloud) ----------
+  // The doctor's iCloud calendars as last found, so the list shows every calendar, not only the ones in use
+  var appleFound = null;
+  var appleAdded = false;
+  function renderApple() {
+    renderAppleCals();
+    api('/api/admin/apple').then(function (d) {
+      appleAdded = d.added;
+      $('#ap-setup').open = !d.added;
+      $('#ap-find').hidden = !d.added;
+      var st = $('#ap-status');
+      if (!d.added) { st.textContent = T('ap.noKey'); st.className = 'g-status bad'; return; }
+      if (d.status && !d.status.ok) { st.textContent = T('g.problemAt', I.srv(d.status.message), fmtStamp(d.status.at)); st.className = 'g-status bad'; }
+      else { st.textContent = T('ap.connected', d.appleId) + (d.status ? ' · ' + I.srv(d.status.message) : '.'); st.className = 'g-status good'; }
+      if (!appleFound) findApple();
+    });
+  }
+  // Saved calendars first, then any others found in iCloud
+  function appleRows(a) {
+    var rows = a.calendars.map(function (c) {
+      var f = appleFound && appleFound.filter(function (x) { return x.url === c.url; })[0];
+      return { url: c.url, label: f ? f.name : c.label, color: f ? f.color : '', busy: c.busy, block: c.block, missing: !!appleFound && !f };
+    });
+    (appleFound || []).forEach(function (f) {
+      if (!rows.some(function (r) { return r.url === f.url; })) rows.push({ url: f.url, label: f.name, color: f.color, busy: false, block: { busy: true, free: true, allDay: true } });
+    });
+    return rows;
+  }
+  function renderAppleCals(rows, booking) {
+    rows = rows || appleRows(settings.apple);
+    booking = booking === undefined ? settings.apple.bookingCalendar : booking;
+    $('#ap-cals').innerHTML = rows.length ? rows.map(function (c) {
+      return '<div class="g-cal ap-cal" data-url="' + esc(c.url) + '" data-label="' + esc(c.label) + '">' +
+        '<p class="ap-name"><span class="ap-dot"' + (c.color ? ' style="background:' + esc(c.color) + '"' : '') + '></span>' + esc(c.label || T('g.calN', '')) +
+        (c.missing ? ' <span class="ap-missing">' + T('ap.missing') + '</span>' : '') + '</p>' +
+        '<label class="check"><input type="checkbox" data-k="busy"' + (c.busy ? ' checked' : '') + '><span>' + T('g.calBusy') + '</span></label>' +
+        '<fieldset class="g-kinds"' + (c.busy ? '' : ' disabled') + '><legend>' + T('g.which') + '</legend>' +
+        ['busy', 'free', 'allDay'].map(function (k) {
+          return '<label class="check"><input type="checkbox" data-kind="' + k + '"' + (!c.block || c.block[k] !== false ? ' checked' : '') + '><span>' + T('g.ev.' + k) + '</span></label>';
+        }).join('') + '</fieldset></div>';
+    }).join('') : (appleAdded ? '<p class="muted">' + T('ap.noCals') + '</p>' : '');
+    var sel = $('#ap-booking');
+    sel.innerHTML = '<option value="">' + esc(T('g.noBookingCal')) + '</option>' + rows.map(function (c) {
+      return '<option value="' + esc(c.url) + '">' + esc(c.label) + '</option>';
+    }).join('');
+    sel.value = rows.some(function (c) { return c.url === booking; }) ? booking : '';
+  }
+  // What the Apple card would save: calendars that block booking or take new bookings
+  function appleForm() {
+    var booking = $('#ap-booking').value;
+    var cals = $$('#ap-cals .ap-cal').map(function (row) {
+      var block = {};
+      $$('[data-kind]', row).forEach(function (x) { block[x.dataset.kind] = x.checked; });
+      return { url: row.dataset.url, label: row.dataset.label, busy: $('[data-k="busy"]', row).checked, block: block };
+    }).filter(function (c) { return c.busy || c.url === booking; });
+    return { calendars: cals, bookingCalendar: booking };
+  }
+  function readApple() { settings.apple = appleForm(); }
+  function findApple() {
+    var b = $('#ap-find');
+    b.disabled = true;
+    status($('#ap-result'), T('ap.finding'));
+    api('/api/admin/apple/calendars', { method: 'POST' })
+      .then(function (d) {
+        if (!d.ok) { status($('#ap-result'), I.srv(d.message), true); return; }
+        // keep what's been ticked but not saved yet
+        var current = $$('#ap-cals .ap-cal').length ? appleForm() : settings.apple;
+        appleFound = d.calendars;
+        renderAppleCals(appleRows(current), current.bookingCalendar);
+        status($('#ap-result'), T('ap.found', d.calendars.length));
+      })
+      .catch(function (e) { status($('#ap-result'), e.message, true); })
+      .then(function () { b.disabled = false; });
+  }
+  $('#ap-find').addEventListener('click', findApple);
+  $('#ap-cals').addEventListener('change', function (e) {
+    if (e.target.dataset.k !== 'busy') return;
+    $('.g-kinds', e.target.closest('.ap-cal')).disabled = !e.target.checked;
+  });
+  $('#ap-sync').addEventListener('click', function () {
+    var b = this;
+    if (dirtyAvailability()) { status($('#ap-result'), T('g.saveFirst'), true); return; }
+    b.disabled = true;
+    status($('#ap-result'), T('g.adding'));
+    api('/api/admin/apple/sync', { method: 'POST' })
+      .then(function (d) {
+        var ok = !d.apple || d.apple.ok;
+        var el = $('#ap-result');
+        el.textContent = ok ? T('g.synced', d.count) : T('g.problem', I.srv(d.apple.message));
+        el.classList.toggle('is-error', !ok);
+        renderApple();
+      })
+      .catch(function (e) { status($('#ap-result'), e.message, true); })
+      .then(function () { b.disabled = false; });
+  });
   $('#hours').addEventListener('change', function (e) {
     if (e.target.type !== 'checkbox') return;
     $$('input[type="time"]', e.target.closest('.hour')).forEach(function (t) { t.disabled = !e.target.checked; });
@@ -577,7 +675,8 @@
       if (d.blockedDates.indexOf(ds) !== -1) col += '<div class="sc-dayblock" data-unblock-day="' + ds + '"></div>';
       d.google.filter(function (g) { return g.date === ds; }).forEach(function (g) {
         var s0 = Math.max(g.start, lo), e0 = Math.min(g.end, hi);
-        if (e0 > s0) col += '<div class="sc-ev sc-google" title="' + esc(T('sc.kGoogle') + ' · ' + g.label) + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, top(e0) - top(s0)) + 'px"><span>' + esc(g.label || T('sc.kGoogle')) + '</span></div>';
+        var kind = g.src === 'apple' ? 'sc.kApple' : 'sc.kGoogle';
+        if (e0 > s0) col += '<div class="sc-ev sc-google' + (g.src === 'apple' ? ' sc-apple' : '') + '" title="' + esc(T(kind) + ' · ' + g.label) + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, top(e0) - top(s0)) + 'px"><span>' + esc(g.label || T(kind)) + '</span></div>';
       });
       d.blockedTimes.forEach(function (b, bi) {
         if (b.date !== ds) return;
@@ -748,6 +847,7 @@
   function readAvailabilityForm() {
     readTypes();
     readGoogle();
+    readApple();
     settings.hours = $$('#hours .hour').map(function (row) {
       var on = $('input[type="checkbox"]', row).checked;
       var t = $$('input[type="time"]', row);

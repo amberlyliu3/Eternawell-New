@@ -4,6 +4,7 @@
 //  - a "Send the doctor a message" form whose messages appear in the admin,
 //  - optional Google Calendar sync: each booking becomes an event on the doctor's calendar, and busy times
 //    on that calendar (e.g. EZCall shifts) can be hidden from online booking.
+//  - optional Apple Calendar (iCloud) sync over CalDAV, the same two things for the doctor's iCloud calendars.
 // Everything is stored in one SQLite-backed Durable Object ("Store").
 // The admin password is the ADMIN_PASSWORD secret (Cloudflare dashboard → Worker → Settings → Variables and Secrets).
 
@@ -36,6 +37,9 @@ const DEFAULT_SETTINGS = {
   // calendar has events; block says which kinds count (timed events marked Busy or Free, and all-day events).
   // bookingCalendar: the calendar ID new bookings are added to ('' for none).
   google: { calendars: [], bookingCalendar: '', detail: 'minimal' },
+  // Apple Calendar: read with the APPLE_ID and APPLE_APP_PASSWORD secrets. calendars: [{ url, label, busy, block }]
+  // like Google's, with the calendar's iCloud address as url; bookingCalendar: the url new bookings are added to.
+  apple: { calendars: [], bookingCalendar: '' },
 };
 
 // ---------- small helpers ----------
@@ -160,6 +164,19 @@ function cleanSettings(input) {
     if (!cals.some((c) => c.id === booking)) booking = '';
     s.google = { calendars: cals, bookingCalendar: booking, detail: g.detail === 'full' ? 'full' : 'minimal' };
   }
+  if (input.apple && typeof input.apple === 'object') {
+    const a = input.apple;
+    const okUrl = (v) => { const u = String(v || '').trim().slice(0, 500); return /^https?:\/\/[^\s"'<>]+$/.test(u) ? u : ''; };
+    const seen = new Set();
+    const cals = (Array.isArray(a.calendars) ? a.calendars : []).slice(0, 20)
+      .map((c) => {
+        const k = (c && c.block) || {};
+        return { url: okUrl(c && c.url), label: String((c && c.label) || '').trim().slice(0, 60), busy: !!(c && c.busy), block: { busy: k.busy !== false, free: k.free !== false, allDay: k.allDay !== false } };
+      })
+      .filter((c) => c.url && !seen.has(c.url) && seen.add(c.url));
+    const booking = okUrl(a.bookingCalendar);
+    s.apple = { calendars: cals, bookingCalendar: cals.some((c) => c.url === booking) ? booking : '' };
+  }
   return s;
 }
 
@@ -227,7 +244,7 @@ function eventFor(b, detail, origin) {
   const full = detail === 'full';
   const lines = full
     ? [`Patient: ${b.name}`, `Phone: ${b.phone}`, b.email && `Email: ${b.email}`, `Visit: ${mode}`, b.note && `Note: ${b.note}`]
-    : [`Patient: ${initials}`, `Visit: ${mode}`, 'Full details are in the admin, not in Google.'];
+    : [`Patient: ${initials}`, `Visit: ${mode}`, 'Full details are in the admin, not in the calendar.'];
   const start = absMin(b.date, b.start);
   return {
     summary: `${b.type_name} – ${full ? b.name : initials} (${mode})`,
@@ -238,6 +255,231 @@ function eventFor(b, detail, origin) {
     extendedProperties: { private: { eternawellBooking: b.id } },
     reminders: { useDefault: true },
   };
+}
+
+// ---------- Apple Calendar (iCloud, over CalDAV) ----------
+// The APPLE_ID secret is the doctor's Apple ID email and APPLE_APP_PASSWORD an app-specific password made at
+// appleid.apple.com. They are only ever sent to iCloud (APPLE_CALDAV_URL exists only for local testing).
+const APPLE_CALDAV = 'https://caldav.icloud.com/';
+
+function appleAccount(env) {
+  const id = String(env.APPLE_ID || '').trim();
+  const pass = String(env.APPLE_APP_PASSWORD || '').trim();
+  return id && pass ? { id, pass } : null;
+}
+
+function appleHostOk(env, url) {
+  let u;
+  try { u = new URL(url); } catch { return false; }
+  if (u.protocol === 'https:' && (u.hostname === 'icloud.com' || u.hostname.endsWith('.icloud.com'))) return true;
+  return !!env.APPLE_CALDAV_URL && u.origin === new URL(env.APPLE_CALDAV_URL).origin;
+}
+
+// One CalDAV request. Follows iCloud's redirects to the server that holds the account.
+async function dav(env, method, url, body, headers = {}) {
+  const acct = appleAccount(env);
+  if (!acct) throw new Error('The Apple ID and app-specific password have not been added to Cloudflare yet (secrets APPLE_ID and APPLE_APP_PASSWORD).');
+  const auth = `Basic ${btoa(String.fromCharCode(...new TextEncoder().encode(`${acct.id}:${acct.pass}`)))}`;
+  for (let hop = 0; hop < 4; hop++) {
+    if (!appleHostOk(env, url)) throw new Error("That isn't an iCloud calendar address.");
+    const res = await fetch(url, { method, redirect: 'manual', body, headers: { authorization: auth, ...headers } });
+    const to = res.headers.get('location');
+    if ([301, 302, 307, 308].includes(res.status) && to) { url = new URL(to, url).href; continue; }
+    if (res.status === 401) { const e = new Error('iCloud rejected the Apple ID or app-specific password. Make a new app-specific password and update the APPLE_APP_PASSWORD secret.'); e.status = 401; throw e; }
+    if (method === 'DELETE' && [200, 204, 404, 410].includes(res.status)) return { text: '', url };
+    const text = await res.text();
+    if (!res.ok) { const e = new Error(`iCloud error ${res.status}`); e.status = res.status; throw e; }
+    return { text, url };
+  }
+  throw new Error('iCloud redirected too many times.');
+}
+
+const XML = { 'content-type': 'application/xml; charset=utf-8' };
+const DAV_NS = 'xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:a="http://apple.com/ns/ical/"';
+const propfind = (env, url, depth, props) => dav(env, 'PROPFIND', url, `<?xml version="1.0" encoding="utf-8"?><d:propfind ${DAV_NS}><d:prop>${props}</d:prop></d:propfind>`, { ...XML, depth: String(depth) });
+
+// A small reader for CalDAV's XML replies: the <response> blocks, and the text of a tag inside one
+// (whatever namespace prefix the server uses).
+const xmlText = (s) => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;'))
+  .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d))
+  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+const xmlBlocks = (xml, tag) => [...xml.matchAll(new RegExp(`<(?:[\\w-]+:)?${tag}\\b[^>]*?(?:/>|>([\\s\\S]*?)</(?:[\\w-]+:)?${tag}>)`, 'gi'))].map((m) => m[1] || '');
+const xmlTag = (xml, tag) => { const b = xmlBlocks(xml, tag); return b.length ? xmlText(b[0]).trim() : ''; };
+
+// Clinic-independent time-zone maths for calendar files: wall-clock time in a zone <-> a moment in time
+const zoneFormats = new Map();
+function zoneOffset(ms, tz) {
+  let f = zoneFormats.get(tz);
+  if (!f) {
+    try { f = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }); } catch { f = null; }
+    zoneFormats.set(tz, f);
+  }
+  if (!f) return null;
+  const p = Object.fromEntries(f.formatToParts(new Date(ms)).map((x) => [x.type, +x.value]));
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second) - Math.floor(ms / 1000) * 1000;
+}
+function zonedMs(wall, tz) { // wall: the wall-clock time written as if it were UTC
+  if (zoneOffset(0, tz) === null) tz = TZ; // unknown zone names (e.g. from Outlook) count as clinic time
+  let t = wall - zoneOffset(wall, tz);
+  t = wall - zoneOffset(t, tz);
+  return t;
+}
+
+// ---- calendar files (iCalendar, RFC 5545) ----
+function icsProps(block) {
+  return block.split(/\r?\n/).filter(Boolean).map((line) => {
+    const i = line.search(/[:;]/);
+    if (i < 0) return null;
+    const name = line.slice(0, i).toUpperCase();
+    const params = {};
+    let rest = line.slice(i);
+    while (rest[0] === ';') {
+      const m = rest.match(/^;([^=;:]+)=("[^"]*"|[^;:]*)/);
+      if (!m) break;
+      params[m[1].toUpperCase()] = m[2].replace(/^"|"$/g, '');
+      rest = rest.slice(m[0].length);
+    }
+    return { name, params, value: rest.slice(1) };
+  }).filter(Boolean);
+}
+
+// A DTSTART/DTEND value as { date } (all day) or { wall, tz } (wall-clock ms in a zone; tz '' = UTC)
+function icsTime(p) {
+  if (!p) return null;
+  const m = p.value.trim().match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?$/);
+  if (!m) return null;
+  if (!m[4] || p.params.VALUE === 'DATE') return { date: `${m[1]}-${m[2]}-${m[3]}` };
+  return { wall: Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]), tz: m[7] ? '' : p.params.TZID || TZ };
+}
+const icsMs = (t) => (t.tz ? zonedMs(t.wall, t.tz) : t.wall);
+function icsDuration(v) {
+  const m = String(v || '').match(/^([+-])?P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/);
+  if (!m) return 0;
+  return (m[1] === '-' ? -1 : 1) * ((+m[2] || 0) * 7 * 864e5 + (+m[3] || 0) * 864e5 + (+m[4] || 0) * 36e5 + (+m[5] || 0) * 6e4 + (+m[6] || 0) * 1e3);
+}
+
+// The events in a calendar-query reply, with repeating events expanded between two moments, as
+// { start, end, kind } where start/end are clinic minute ranges like the Google ones.
+function icsEvents(text, fromMs, toMs, me) {
+  const unfolded = text.replace(/\r?\n[ \t]/g, '');
+  const vevents = [...unfolded.matchAll(/BEGIN:VEVENT\r?\n([\s\S]*?)END:VEVENT/g)].map((m) => {
+    const props = icsProps(m[1]);
+    const one = (n) => props.find((p) => p.name === n);
+    return { props, one, uid: (one('UID') || {}).value || '', rid: icsTime(one('RECURRENCE-ID')) };
+  });
+  const key = (t) => (t.date ? t.date : String(icsMs(t)));
+  const overridden = new Set(vevents.filter((v) => v.rid).map((v) => `${v.uid}|${key(v.rid)}`));
+  const out = [];
+  for (const v of vevents) {
+    if (/^CANCELLED$/i.test((v.one('STATUS') || {}).value || '')) continue;
+    const attendee = me && v.props.find((p) => p.name === 'ATTENDEE' && p.value.toLowerCase() === `mailto:${me.toLowerCase()}`);
+    if (attendee && attendee.params.PARTSTAT === 'DECLINED') continue;
+    const start = icsTime(v.one('DTSTART'));
+    if (!start) continue;
+    const end = icsTime(v.one('DTEND'));
+    const kind = start.date ? 'allDay' : /^TRANSPARENT$/i.test((v.one('TRANSP') || {}).value || '') ? 'free' : 'busy';
+    // length of the event: whole days for all-day events, milliseconds otherwise
+    const len = start.date
+      ? (end && end.date ? dayNum(end.date) - dayNum(start.date) : Math.max(1, Math.round(icsDuration((v.one('DURATION') || {}).value) / 864e5) || 1))
+      : (end && !end.date ? icsMs(end) - icsMs(start) : icsDuration((v.one('DURATION') || {}).value));
+    if (len <= 0) continue;
+    const rrule = v.rid ? null : v.one('RRULE');
+    const skip = new Set();
+    for (const p of v.props.filter((x) => x.name === 'EXDATE')) {
+      for (const val of p.value.split(',')) { const t = icsTime({ value: val, params: p.params }); if (t) skip.add(key(start.date && !t.date ? { date: dateOf(Math.floor(t.wall / 864e5)) } : t)); }
+    }
+    const starts = rrule ? icsRepeat(start, rrule.value, toMs) : [start];
+    for (const s of starts) {
+      if (rrule && (skip.has(key(s)) || overridden.has(`${v.uid}|${key(s)}`))) continue;
+      let a, b;
+      if (s.date) { a = absMin(s.date, 0); b = a + len * 1440; } else {
+        const ms = icsMs(s);
+        const pa = laParts(ms), pb = laParts(ms + len);
+        a = absMin(pa.date, pa.min); b = absMin(pb.date, pb.min);
+      }
+      const aMs = s.date ? zonedMs(dayNum(s.date) * 864e5, TZ) : icsMs(s);
+      if (aMs >= toMs || aMs + (s.date ? len * 864e5 : len) <= fromMs) continue;
+      out.push({ start: a, end: b, kind });
+    }
+  }
+  return out;
+}
+
+// The start times of a repeating event up to a moment, for the common rules (daily, weekly, monthly,
+// yearly, with INTERVAL, COUNT, UNTIL, BYDAY, BYMONTHDAY and BYMONTH). iCloud normally expands repeats
+// itself, so this is only a fallback.
+function icsRepeat(start, rule, toMs) {
+  const r = Object.fromEntries(rule.split(';').map((x) => x.split('=')).map(([k, v]) => [k.toUpperCase(), v || '']));
+  const freq = r.FREQ;
+  if (!['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].includes(freq)) return [start];
+  const every = Math.max(1, +r.INTERVAL || 1);
+  const count = +r.COUNT || Infinity;
+  const until = r.UNTIL ? icsTime({ value: r.UNTIL, params: {} }) : null;
+  const untilMs = until ? (until.date ? zonedMs((dayNum(until.date) + 1) * 864e5, TZ) - 1 : icsMs(until)) : Infinity;
+  const DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  const byDay = (r.BYDAY || '').split(',').filter(Boolean).map((x) => { const m = x.match(/^([+-]?\d+)?(SU|MO|TU|WE|TH|FR|SA)$/i); return m && { n: +m[1] || 0, wd: DAYS.indexOf(m[2].toUpperCase()) }; }).filter(Boolean);
+  const byMonthDay = (r.BYMONTHDAY || '').split(',').filter(Boolean).map(Number);
+  const byMonth = (r.BYMONTH || '').split(',').filter(Boolean).map(Number);
+  const d0 = start.date ? dayNum(start.date) : Math.floor(start.wall / 864e5);
+  const tod = start.date ? 0 : start.wall - d0 * 864e5;
+  const day0 = new Date(d0 * 864e5);
+  const wkst = DAYS.indexOf((r.WKST || 'MO').toUpperCase());
+  const weekOf = (d) => Math.floor((d - ((new Date(d * 864e5).getUTCDay() - wkst + 7) % 7) - d0 + ((day0.getUTCDay() - wkst + 7) % 7)) / 7);
+  const matches = (d) => {
+    const dt = new Date(d * 864e5);
+    const y = dt.getUTCFullYear(), mo = dt.getUTCMonth(), md = dt.getUTCDate(), wd = dt.getUTCDay();
+    const months = (y - day0.getUTCFullYear()) * 12 + mo - day0.getUTCMonth();
+    const inMonth = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+    const nth = (b) => b.wd === wd && (!b.n || (b.n > 0 ? Math.ceil(md / 7) === b.n : Math.ceil((inMonth - md + 1) / 7) === -b.n));
+    if (byMonth.length && !byMonth.includes(mo + 1)) return false;
+    if (freq === 'DAILY') return (d - d0) % every === 0 && (!byDay.length || byDay.some((b) => b.wd === wd));
+    if (freq === 'WEEKLY') return weekOf(d) % every === 0 && (byDay.length ? byDay.some((b) => b.wd === wd) : wd === day0.getUTCDay());
+    if (freq === 'MONTHLY') {
+      if (months % every) return false;
+      if (byDay.length) return byDay.some(nth);
+      if (byMonthDay.length) return byMonthDay.some((x) => (x > 0 ? x : inMonth + x + 1) === md);
+      return md === day0.getUTCDate();
+    }
+    if ((y - day0.getUTCFullYear()) % every) return false;
+    if (byDay.length && byMonth.length) return byDay.some(nth);
+    return mo === day0.getUTCMonth() && md === day0.getUTCDate();
+  };
+  const out = [];
+  let n = 0;
+  for (let d = d0; d < d0 + 40000 && n < count; d++) {
+    const s = start.date ? { date: dateOf(d) } : { wall: d * 864e5 + tod, tz: start.tz };
+    const ms = start.date ? zonedMs(d * 864e5, TZ) : icsMs(s);
+    if (ms > untilMs || ms >= toMs) break;
+    if (d !== d0 && !matches(d)) continue;
+    n++;
+    out.push(s);
+  }
+  return out;
+}
+
+// A booking as a calendar file for iCloud (times in UTC, so no time-zone block is needed). Apple doesn't
+// sign HIPAA agreements, so these events always use the minimal details.
+function icsFor(b, origin) {
+  const ev = eventFor(b, 'minimal', origin);
+  const start = absMin(b.date, b.start);
+  const stamp = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const esc = (t) => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  const fold = (line) => { // lines of at most 75 bytes
+    let out = '', len = 0;
+    for (const ch of line) {
+      const n = new TextEncoder().encode(ch).length;
+      if (len + n > 74) { out += '\r\n '; len = 1; }
+      out += ch; len += n;
+    }
+    return out;
+  };
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//EternaWell Medicine//Booking//EN', 'BEGIN:VEVENT',
+    `UID:eternawell-${b.id}@eternawell`, `DTSTAMP:${stamp(Date.now())}`,
+    `DTSTART:${stamp(zonedMs(start * 6e4, TZ))}`, `DTEND:${stamp(zonedMs((start + b.minutes) * 6e4, TZ))}`,
+    `SUMMARY:${esc(ev.summary)}`, `DESCRIPTION:${esc(ev.description)}`, ev.location && `LOCATION:${esc(ev.location)}`,
+    'END:VEVENT', 'END:VCALENDAR', '',
+  ].filter((l) => l !== undefined).map(fold).join('\r\n');
 }
 
 // ---------- storage ----------
@@ -263,6 +505,9 @@ export class Store extends DurableObject {
     const cols = this.sql.exec('PRAGMA table_info(bookings)').toArray().map((c) => c.name);
     if (!cols.includes('gcal_id')) this.sql.exec("ALTER TABLE bookings ADD COLUMN gcal_id TEXT NOT NULL DEFAULT ''");
     if (!cols.includes('gcal_cal')) this.sql.exec("ALTER TABLE bookings ADD COLUMN gcal_cal TEXT NOT NULL DEFAULT ''");
+    // the booking's event on an Apple calendar: its address, and the calendar's
+    if (!cols.includes('apple_href')) this.sql.exec("ALTER TABLE bookings ADD COLUMN apple_href TEXT NOT NULL DEFAULT ''");
+    if (!cols.includes('apple_cal')) this.sql.exec("ALTER TABLE bookings ADD COLUMN apple_cal TEXT NOT NULL DEFAULT ''");
     this.busyCache = new Map(); // "from|to" -> { at, ranges }
   }
 
@@ -321,7 +566,7 @@ export class Store extends DurableObject {
     return this.sql.exec("SELECT date, start, minutes FROM bookings WHERE date >= ? AND date <= ? AND status IN ('confirmed', 'completed')", from, to).toArray();
   }
 
-  slots(settings, type, date, taken, googleBusy = []) {
+  slots(settings, type, date, taken, calBusy = []) {
     if (!isDate(date)) return [];
     const h = settings.hours[weekday(date)];
     if (!h || settings.blockedDates.includes(date)) return [];
@@ -333,7 +578,7 @@ export class Store extends DurableObject {
     const busy = taken.filter((b) => b.date === date)
       .map((b) => [absMin(b.date, b.start) - settings.bufferMinutes, absMin(b.date, b.start) + b.minutes + settings.bufferMinutes])
       .concat(settings.blockedTimes.filter((b) => b.date === date).map((b) => [absMin(date, hm(b.start)), absMin(date, hm(b.end))]))
-      .concat(googleBusy);
+      .concat(calBusy);
     const out = [];
     for (let t = hm(h.start); t + type.minutes <= hm(h.end); t += settings.slotStep) {
       const at = d * 1440 + t;
@@ -344,14 +589,24 @@ export class Store extends DurableObject {
     return out;
   }
 
-  // ---- Google Calendar ----
-  googleState() {
-    const row = this.sql.exec("SELECT v FROM kv WHERE k = 'google_status'").toArray()[0];
+  // ---- calendars ----
+  // Last result of talking to Google ('google') or iCloud ('apple'), shown in the admin
+  calState(which) {
+    const row = this.sql.exec('SELECT v FROM kv WHERE k = ?', `${which}_status`).toArray()[0];
     return row ? JSON.parse(row.v) : null;
   }
 
-  noteGoogle(ok, message) {
-    this.sql.exec("INSERT INTO kv (k, v) VALUES ('google_status', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", JSON.stringify({ ok, message: String(message || '').slice(0, 300), at: Date.now() }));
+  noteCal(which, ok, message) {
+    this.sql.exec('INSERT INTO kv (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v', `${which}_status`, JSON.stringify({ ok, message: String(message || '').slice(0, 300), at: Date.now() }));
+  }
+
+  googleState() { return this.calState('google'); }
+  noteGoogle(ok, message) { this.noteCal('google', ok, message); }
+
+  // Busy times on every connected calendar, Google and Apple: [start, end, calendar name, 'google' | 'apple']
+  async calendarBusy(settings, from, to, fresh = false) {
+    const [g, a] = await Promise.all([this.googleBusy(settings, from, to, fresh), this.appleBusy(settings, from, to, fresh)]);
+    return g.map((r) => [...r, 'google']).concat(a.map((r) => [...r, 'apple']));
   }
 
   // Times taken up on the connected calendars between two dates, as wall-clock minute ranges
@@ -417,12 +672,111 @@ export class Store extends DurableObject {
     }
   }
 
+  // The same for the Apple calendars chosen to block booking, read from iCloud
+  async appleBusy(settings, from, to, fresh = false) {
+    const cals = settings.apple.calendars.filter((c) => c.busy);
+    if (!cals.length || !appleAccount(this.env)) return [];
+    const key = `apple|${cals.map((c) => `${c.url}:${+c.block.busy}${+c.block.free}${+c.block.allDay}`).join(',')}|${from}|${to}`;
+    const hit = this.busyCache.get(key);
+    if (!fresh && hit && Date.now() - hit.at < 60e3) return hit.ranges;
+    const fromMs = (dayNum(from) - 1) * 864e5;
+    const toMs = (dayNum(to) + 2) * 864e5;
+    const failed = [];
+    const results = await Promise.all(cals.map((c) => this.appleRanges(c, fromMs, toMs).catch((err) => {
+      failed.push(`${c.label || 'Apple calendar'} (${err.message})`);
+      return null;
+    })));
+    if (failed.length) this.noteCal('apple', false, `iCloud can't read busy times for: ${failed.join(', ')}.`);
+    if (results.every((r) => r === null) && hit) return hit.ranges; // if iCloud is unreachable, keep what we had
+    const ranges = [].concat(...results.filter(Boolean));
+    this.busyCache.set(key, { at: Date.now(), ranges });
+    if (this.busyCache.size > 50) this.busyCache.delete(this.busyCache.keys().next().value);
+    return ranges;
+  }
 
-  // Adds, or (when status isn't confirmed) removes, a booking's calendar event. Never throws.
+  async appleRanges(c, fromMs, toMs) {
+    const t = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    const body = `<?xml version="1.0" encoding="utf-8"?><c:calendar-query ${DAV_NS}><d:prop><c:calendar-data><c:expand start="${t(fromMs)}" end="${t(toMs)}"/></c:calendar-data></d:prop>` +
+      `<c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"><c:time-range start="${t(fromMs)}" end="${t(toMs)}"/></c:comp-filter></c:comp-filter></c:filter></c:calendar-query>`;
+    const r = await dav(this.env, 'REPORT', c.url, body, { ...XML, depth: '1' });
+    const me = appleAccount(this.env).id;
+    const name = c.label || 'Apple calendar';
+    return [].concat(...xmlBlocks(r.text, 'calendar-data').map((x) => icsEvents(xmlText(x), fromMs, toMs, me)))
+      .filter((e) => c.block[e.kind])
+      .map((e) => [e.start, e.end, name]);
+  }
+
+  // The doctor's iCloud calendars (that hold events), for the admin to choose from
+  async appleCalendars() {
+    const acct = appleAccount(this.env);
+    if (!acct) return { ok: false, message: 'The Apple ID and app-specific password have not been added to Cloudflare yet (secrets APPLE_ID and APPLE_APP_PASSWORD).' };
+    try {
+      const row = this.sql.exec("SELECT v FROM kv WHERE k = 'apple_home'").toArray()[0];
+      const saved = row ? JSON.parse(row.v) : null;
+      let home = saved && saved.id === acct.id ? saved.url : '';
+      let r;
+      if (home) r = await propfind(this.env, home, 1, '<d:displayname/><d:resourcetype/><c:supported-calendar-component-set/><a:calendar-color/>').catch((err) => { if (err.status === 401) throw err; return null; });
+      if (!r) {
+        const base = this.env.APPLE_CALDAV_URL || APPLE_CALDAV;
+        const p1 = await propfind(this.env, base, 0, '<d:current-user-principal/>');
+        const principal = xmlTag(xmlBlocks(p1.text, 'current-user-principal')[0] || '', 'href');
+        if (!principal) throw new Error("iCloud didn't say where this account's calendars are.");
+        const p2 = await propfind(this.env, new URL(principal, p1.url).href, 0, '<c:calendar-home-set/>');
+        const homeHref = xmlTag(xmlBlocks(p2.text, 'calendar-home-set')[0] || '', 'href');
+        if (!homeHref) throw new Error("iCloud didn't say where this account's calendars are.");
+        home = new URL(homeHref, p2.url).href;
+        this.sql.exec("INSERT INTO kv (k, v) VALUES ('apple_home', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", JSON.stringify({ id: acct.id, url: home }));
+        r = await propfind(this.env, home, 1, '<d:displayname/><d:resourcetype/><c:supported-calendar-component-set/><a:calendar-color/>');
+      }
+      const calendars = xmlBlocks(r.text, 'response').map((x) => {
+        const type = xmlBlocks(x, 'resourcetype')[0] || '';
+        const comps = xmlBlocks(x, 'supported-calendar-component-set')[0];
+        if (!/<(?:[\w-]+:)?calendar(?=[\s/>])/i.test(type)) return null;
+        if (comps !== undefined && /comp\b/i.test(comps) && !/name="VEVENT"/i.test(comps)) return null; // reminders lists
+        return { url: new URL(xmlTag(x, 'href'), r.url).href, name: xmlTag(x, 'displayname') || 'Calendar', color: (xmlTag(x, 'calendar-color').match(/^#[0-9a-f]{6}/i) || [''])[0] };
+      }).filter(Boolean);
+      this.noteCal('apple', true, calendars.length ? 'Connected to iCloud.' : 'Connected, but there are no calendars in this iCloud account.');
+      return { ok: true, calendars };
+    } catch (err) {
+      this.noteCal('apple', false, err.message);
+      return { ok: false, message: err.message };
+    }
+  }
+
+  // Adds, or (when status isn't confirmed) removes, a booking's calendar events. Never throws.
   async syncEvent(id, origin) {
     const b = this.sql.exec('SELECT * FROM bookings WHERE id = ?', id).toArray()[0];
     if (!b) return;
-    const g = this.getSettings().google;
+    const s = this.getSettings();
+    await this.syncGoogle(b, s.google, origin);
+    await this.syncApple(b, s.apple, origin);
+  }
+
+  async syncApple(b, a, origin) {
+    if (!appleAccount(this.env) || (!a.bookingCalendar && !b.apple_href)) return;
+    try {
+      const wanted = b.status !== 'cancelled' && a.bookingCalendar;
+      if (b.apple_href && (!wanted || b.apple_cal !== a.bookingCalendar)) {
+        await dav(this.env, 'DELETE', b.apple_href);
+        this.sql.exec("UPDATE bookings SET apple_href = '', apple_cal = '' WHERE id = ?", b.id);
+        b.apple_href = '';
+      }
+      if (wanted && !b.apple_href) {
+        const href = new URL(`eternawell-${b.id}.ics`, a.bookingCalendar.replace(/\/?$/, '/')).href;
+        await dav(this.env, 'PUT', href, icsFor(b, origin), { 'content-type': 'text/calendar; charset=utf-8' });
+        this.sql.exec('UPDATE bookings SET apple_href = ?, apple_cal = ? WHERE id = ?', href, a.bookingCalendar, b.id);
+      }
+      this.busyCache.clear();
+      this.noteCal('apple', true, 'Last calendar update worked.');
+    } catch (err) {
+      this.noteCal('apple', false, err.status === 403 || err.status === 404
+        ? `iCloud refused the update (${err.message}). Check the calendar still exists and isn't read-only.`
+        : err.message);
+    }
+  }
+
+  async syncGoogle(b, g, origin) {
+    const id = b.id;
     if (!serviceAccount(this.env)) return;
     try {
       const wanted = b.status !== 'cancelled' && g.bookingCalendar;
@@ -448,7 +802,7 @@ export class Store extends DurableObject {
   async syncUpcoming(origin) {
     const ids = this.sql.exec("SELECT id FROM bookings WHERE date >= ? AND status = 'confirmed'", nowLA().date).toArray().map((r) => r.id);
     for (const id of ids) await this.syncEvent(id, origin);
-    return { count: ids.length, status: this.googleState() };
+    return { count: ids.length, status: this.googleState(), apple: this.calState('apple') };
   }
 
   // Checks the key and the calendar sharing, for the admin's "Test connection" button.
@@ -481,10 +835,10 @@ export class Store extends DurableObject {
     const first = dayNum(`${month}-01`);
     const [y, m] = month.split('-').map(Number);
     const last = Date.UTC(y, m, 0) / 864e5;
-    const googleBusy = await this.googleBusy(s, dateOf(first), dateOf(last));
+    const calBusy = await this.calendarBusy(s, dateOf(first), dateOf(last));
     const taken = this.takenOn(dateOf(first), dateOf(last));
     const out = [];
-    for (let d = first; d <= last; d++) if (this.slots(s, type, dateOf(d), taken, googleBusy).length) out.push(dateOf(d));
+    for (let d = first; d <= last; d++) if (this.slots(s, type, dateOf(d), taken, calBusy).length) out.push(dateOf(d));
     return out;
   }
 
@@ -492,8 +846,8 @@ export class Store extends DurableObject {
     const s = this.getSettings();
     const type = s.visitTypes.find((t) => t.id === typeId && t.active);
     if (!type || !isDate(date)) return [];
-    const googleBusy = await this.googleBusy(s, date, date);
-    return this.slots(s, type, date, this.takenOn(date, date), googleBusy);
+    const calBusy = await this.calendarBusy(s, date, date);
+    return this.slots(s, type, date, this.takenOn(date, date), calBusy);
   }
 
   // Creates a booking. Online bookings must fit an open slot; the admin can add any time.
@@ -511,9 +865,9 @@ export class Store extends DurableObject {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'Please check your email address.' };
     if (!admin && !email) return { error: 'Please enter your email address.' };
     if (!admin) {
-      const googleBusy = await this.googleBusy(s, b.date, b.date, true);
+      const calBusy = await this.calendarBusy(s, b.date, b.date, true);
       // no await between this check and the insert below, so two people can't take the same time
-      if (!this.slots(s, type, b.date, this.takenOn(b.date, b.date), googleBusy).includes(b.start)) return { error: 'Sorry, that time was just taken. Please choose another.' };
+      if (!this.slots(s, type, b.date, this.takenOn(b.date, b.date), calBusy).includes(b.start)) return { error: 'Sorry, that time was just taken. Please choose another.' };
     }
     const row = {
       id: randomHex(8), token: randomHex(16), date: b.date, start: b.start, minutes: type.minutes, type: type.id, type_name: type.name,
@@ -556,18 +910,18 @@ export class Store extends DurableObject {
     return true;
   }
 
-  // Everything for the admin's week calendar: bookings, blocked days and hours, weekly hours, Google busy times
+  // Everything for the admin's week calendar: bookings, blocked days and hours, weekly hours, calendar busy times
   async schedule(from, to) {
     if (!isDate(from) || !isDate(to) || dayNum(to) < dayNum(from) || dayNum(to) - dayNum(from) > 62) return null;
     const s = this.getSettings();
     const bookings = this.sql.exec("SELECT id, date, start, minutes, type, type_name, mode, name, phone, email, status, source FROM bookings WHERE date >= ? AND date <= ? AND status IN ('confirmed', 'completed') ORDER BY date, start", from, to).toArray();
     const google = [];
-    for (const [a, b, label] of await this.googleBusy(s, from, to, true)) { // always fresh in the admin
+    for (const [a, b, label, src] of await this.calendarBusy(s, from, to, true)) { // always fresh in the admin
       // split ranges that cross midnight into one piece per day
       for (let d = Math.floor(a / 1440); d * 1440 < b; d++) {
         const date = dateOf(d);
         if (date < from || date > to) continue;
-        google.push({ date, start: Math.max(a, d * 1440) - d * 1440, end: Math.min(b, (d + 1) * 1440) - d * 1440, label });
+        google.push({ date, start: Math.max(a, d * 1440) - d * 1440, end: Math.min(b, (d + 1) * 1440) - d * 1440, label, src });
       }
     }
     return { bookings, blockedDates: s.blockedDates, blockedTimes: s.blockedTimes, hours: s.hours, google, today: nowLA().date };
@@ -791,7 +1145,12 @@ async function api(request, env, url) {
     const body = await readJson(request, 2_000);
     return json(await db.testGoogle(String(body.calendarId || '').trim()));
   }
-  if (path === '/api/admin/google/sync' && method === 'POST') return json(await db.syncUpcoming(url.origin));
+  if ((path === '/api/admin/google/sync' || path === '/api/admin/apple/sync') && method === 'POST') return json(await db.syncUpcoming(url.origin));
+  if (path === '/api/admin/apple' && method === 'GET') {
+    const acct = appleAccount(env);
+    return json({ added: !!acct, appleId: acct ? acct.id : '', status: await db.calState('apple') });
+  }
+  if (path === '/api/admin/apple/calendars' && method === 'POST') return json(await db.appleCalendars());
   if (path === '/api/admin/schedule' && method === 'GET') {
     const r = await db.schedule(url.searchParams.get('from') || '', url.searchParams.get('to') || '');
     return r ? json(r) : bad('Choose a date range of up to two months.');
