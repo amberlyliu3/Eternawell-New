@@ -396,6 +396,7 @@
     renderSchedule();
     renderGoogle();
     renderApple();
+    renderFeeds(settings.feeds);
   }
 
   // ---------- Google Calendar ----------
@@ -509,6 +510,62 @@
     return JSON.stringify(now) !== JSON.stringify({ calendars: g.calendars, bookingCalendar: g.bookingCalendar, detail: g.detail }) ||
       JSON.stringify(appleForm()) !== JSON.stringify(settings.apple);
   }
+
+  // ---------- calendar links (iCal feeds, e.g. EZCall) ----------
+  function renderFeeds(list) {
+    $('#f-list').innerHTML = list.length ? list.map(function (f, i) {
+      return '<div class="g-cal f-row" data-row="' + i + '">' +
+        '<div class="grid">' +
+        '<label class="field"><span>' + T('g.calName') + '</span><input data-k="label" value="' + esc(f.label) + '" placeholder="' + esc(T('f.namePh')) + '"></label>' +
+        '<label class="field"><span>' + T('f.link') + '</span><input data-k="url" value="' + esc(f.url) + '" placeholder="webcal://… or https://….ics" spellcheck="false" autocomplete="off"></label>' +
+        '</div>' +
+        '<fieldset class="g-kinds f-kinds"><legend>' + T('g.which') + '</legend>' +
+        ['busy', 'free', 'allDay'].map(function (k) {
+          return '<label class="check"><input type="checkbox" data-kind="' + k + '"' + (!f.block || f.block[k] !== false ? ' checked' : '') + '><span>' + T('g.ev.' + k) + '</span></label>';
+        }).join('') + '</fieldset>' +
+        '<div class="row"><button type="button" class="btn ghost sm" data-ftest>' + T('f.test') + '</button><button type="button" class="btn ghost sm danger" data-fremove>' + T('g.removeCal') + '</button></div>' +
+        '<p class="status g-cal-result" aria-live="polite"></p></div>';
+    }).join('') : '<p class="muted">' + T('f.none') + '</p>';
+    api('/api/admin/feeds').then(function (d) {
+      var st = $('#f-status');
+      if (!d.status || !list.length) { st.textContent = ''; return; }
+      st.textContent = d.status.ok ? T('g.connected') + ' · ' + I.srv(d.status.message) : T('g.problemAt', I.srv(d.status.message), fmtStamp(d.status.at));
+      st.className = 'g-status ' + (d.status.ok ? 'good' : 'bad');
+    });
+  }
+  function readFeedRows() {
+    return $$('#f-list .f-row').map(function (row) {
+      var block = {};
+      $$('[data-kind]', row).forEach(function (x) { block[x.dataset.kind] = x.checked; });
+      return { url: $('[data-k="url"]', row).value.trim(), label: $('[data-k="label"]', row).value.trim(), block: block };
+    });
+  }
+  function readFeeds() { settings.feeds = readFeedRows().filter(function (f) { return f.url; }); }
+  $('#f-add').addEventListener('click', function () {
+    var list = readFeedRows();
+    list.push({ url: '', label: '', block: { busy: true, free: true, allDay: true } });
+    renderFeeds(list);
+    $$('#f-list .f-row').pop().querySelector('[data-k="label"]').focus();
+  });
+  $('#f-list').addEventListener('click', function (e) {
+    var row = e.target.closest('.f-row');
+    if (!row) return;
+    if (e.target.closest('[data-fremove]')) {
+      var list = readFeedRows();
+      list.splice(Number(row.dataset.row), 1);
+      renderFeeds(list);
+      return;
+    }
+    var b = e.target.closest('[data-ftest]');
+    if (!b) return;
+    var out = $('.g-cal-result', row);
+    b.disabled = true;
+    status(out, T('g.testing'));
+    api('/api/admin/feeds/test', { method: 'POST', body: { url: $('[data-k="url"]', row).value.trim() } })
+      .then(function (d) { out.textContent = I.srv(d.message); out.classList.toggle('is-error', !d.ok); })
+      .catch(function (e2) { status(out, e2.message, true); })
+      .then(function () { b.disabled = false; });
+  });
 
   // ---------- Apple Calendar (iCloud) ----------
   // The doctor's iCloud calendars as last found, so the list shows every calendar, not only the ones in use
@@ -694,8 +751,9 @@
       if (d.blockedDates.indexOf(ds) !== -1) col += '<div class="sc-dayblock" data-unblock-day="' + ds + '"></div>';
       d.google.filter(function (g) { return g.date === ds; }).forEach(function (g) {
         var s0 = Math.max(g.start, lo), e0 = Math.min(g.end, hi);
-        var kind = g.src === 'apple' ? 'sc.kApple' : 'sc.kGoogle';
-        if (e0 > s0) col += '<div class="sc-ev sc-google' + (g.src === 'apple' ? ' sc-apple' : '') + '" title="' + esc(T(kind) + ' · ' + g.label) + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, top(e0) - top(s0)) + 'px"><span>' + (g.src === 'apple' ? 'Apple' : 'Google') + ' · ' + esc(g.label || T(kind)) + '</span></div>';
+        var kind = { apple: 'sc.kApple', feed: 'sc.kFeed' }[g.src] || 'sc.kGoogle';
+        var src = { apple: 'Apple', feed: T('f.short') }[g.src] || 'Google';
+        if (e0 > s0) col += '<div class="sc-ev sc-google' + (g.src === 'apple' ? ' sc-apple' : g.src === 'feed' ? ' sc-feed' : '') + '" title="' + esc(T(kind) + ' · ' + g.label) + '" style="top:' + top(s0) + 'px;height:' + Math.max(18, top(e0) - top(s0)) + 'px"><span>' + esc(src) + ' · ' + esc(g.label || T(kind)) + '</span></div>';
       });
       d.blockedTimes.forEach(function (b, bi) {
         if (b.date !== ds) return;
@@ -859,7 +917,7 @@
   $('[data-panel="availability"] .cols').addEventListener('input', function (e) { if (!e.target.closest('#schedule')) markAvailability(true); });
   $('[data-panel="availability"] .cols').addEventListener('change', function (e) { if (!e.target.closest('#schedule')) markAvailability(true); });
   $('[data-panel="availability"] .cols').addEventListener('click', function (e) {
-    if (e.target.closest('#add-type, #types [data-remove], #g-addcal, [data-gremove]')) markAvailability(true);
+    if (e.target.closest('#add-type, #types [data-remove], #g-addcal, [data-gremove], #f-add, [data-fremove]')) markAvailability(true);
   });
 
   // Copies the availability forms into `settings` (before saving, or before redrawing them in another language)
@@ -867,6 +925,7 @@
     readTypes();
     readGoogle();
     readApple();
+    readFeeds();
     settings.hours = $$('#hours .hour').map(function (row) {
       var on = $('input[type="checkbox"]', row).checked;
       var t = $$('input[type="time"]', row);

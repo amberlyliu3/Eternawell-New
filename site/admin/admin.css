@@ -207,8 +207,9 @@ main { padding: 28px max(16px, 3vw) 64px; }
 .sc-block { background: #6b6560; color: #fff; }
 .sc-google { left: 50%; background: #dbe7f7; color: #1d3f6e; cursor: default; }
 .sc-apple { background: #f7dfe3; color: #7a2033; }
+.sc-feed { background: #dcefe0; color: #1f4d2a; }
 .sc-ev:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
-.k.k-book { background: var(--btn); } .k.k-block { background: #6b6560; } .k.k-google { background: #dbe7f7; } .k.k-apple { background: #f7dfe3; }
+.k.k-book { background: var(--btn); } .k.k-block { background: #6b6560; } .k.k-google { background: #dbe7f7; } .k.k-apple { background: #f7dfe3; } .k.k-feed { background: #dcefe0; }
 .k.k-closed { background: repeating-linear-gradient(-45deg, rgba(23, 22, 20, 0.05) 0 3px, rgba(23, 22, 20, 0.12) 3px 6px); }
 .sc-pop { position: absolute; z-index: 20; width: 280px; display: grid; gap: 6px; padding: 16px 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16); font-size: 14px; }
 .sc-pop-title { font-size: 16px; padding-right: 24px; }

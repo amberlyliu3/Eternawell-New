@@ -180,7 +180,7 @@
             <div class="row"><button type="submit" class="btn" data-i="sc.save">Block</button><button type="button" class="btn ghost" id="sc-cancel" data-i="cancel">Cancel</button></div>
           </form>
           <div class="sc-scroll"><div class="sc-grid" id="sc-grid"></div></div>
-          <p class="legend"><span class="k k-book"></span><span data-i="sc.kBooking">Booking</span> <span class="k k-block"></span><span data-i="sc.kBlocked">Blocked</span> <span class="k k-google"></span><span data-i="sc.kGoogle">Busy in Google Calendar</span> <span class="k k-apple"></span><span data-i="sc.kApple">Apple Calendar event</span> <span class="k k-closed"></span><span data-i="sc.kClosed">Closed</span></p>
+          <p class="legend"><span class="k k-book"></span><span data-i="sc.kBooking">Booking</span> <span class="k k-block"></span><span data-i="sc.kBlocked">Blocked</span> <span class="k k-google"></span><span data-i="sc.kGoogle">Busy in Google Calendar</span> <span class="k k-apple"></span><span data-i="sc.kApple">Apple Calendar event</span> <span class="k k-feed"></span><span data-i="sc.kFeed">Calendar link event</span> <span class="k k-closed"></span><span data-i="sc.kClosed">Closed</span></p>
           <div class="sc-pop" id="sc-pop" role="dialog" aria-modal="false" hidden></div>
         </div>
       </div>
@@ -248,6 +248,14 @@
               <button type="button" class="btn ghost" id="ap-sync" data-i="g.sync">Add upcoming bookings to calendar</button>
             </div>
             <p class="status" id="ap-result" aria-live="polite"></p>
+            <p class="muted" data-i-html="g.saveNote"></p>
+          </div>
+          <div class="card" id="feeds">
+            <h2 data-i="f.title">Calendar links (EZCall and others)</h2>
+            <p class="muted" data-i-html="f.hint"></p>
+            <p class="g-status" id="f-status" aria-live="polite"></p>
+            <div class="g-cals" id="f-list"></div>
+            <button type="button" class="btn ghost sm g-addcal" id="f-add" data-i="f.add">Add a calendar link</button>
             <p class="muted" data-i-html="g.saveNote"></p>
           </div>
         </div>

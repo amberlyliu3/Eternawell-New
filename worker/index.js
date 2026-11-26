@@ -40,6 +40,9 @@ const DEFAULT_SETTINGS = {
   // Apple Calendar: read with the APPLE_ID and APPLE_APP_PASSWORD secrets. calendars: [{ url, label, busy, block }]
   // like Google's, with the calendar's iCloud address as url; bookingCalendar: the url new bookings are added to.
   apple: { calendars: [], bookingCalendar: '' },
+  // Calendar links (iCal feeds), e.g. EZCall shifts the doctor subscribes to: [{ url, label, block }].
+  // Read only: their events close online booking.
+  feeds: [],
 };
 
 // ---------- small helpers ----------
@@ -176,6 +179,15 @@ function cleanSettings(input) {
       .filter((c) => c.url && !seen.has(c.url) && seen.add(c.url));
     const booking = okUrl(a.bookingCalendar);
     s.apple = { calendars: cals, bookingCalendar: cals.some((c) => c.url === booking) ? booking : '' };
+  }
+  if (Array.isArray(input.feeds)) {
+    const seen = new Set();
+    s.feeds = input.feeds.slice(0, 10)
+      .map((f) => {
+        const k = (f && f.block) || {};
+        return { url: feedUrl(f && f.url), label: String((f && f.label) || '').trim().slice(0, 60), block: { busy: k.busy !== false, free: k.free !== false, allDay: k.allDay !== false } };
+      })
+      .filter((f) => f.url && !seen.has(f.url) && seen.add(f.url));
   }
   return s;
 }
@@ -482,6 +494,22 @@ function icsFor(b, origin) {
   ].filter((l) => l !== undefined).map(fold).join('\r\n');
 }
 
+// ---------- calendar links (iCal feeds) ----------
+// A calendar link as pasted (webcal:// links are https), or '' if it isn't a web address
+function feedUrl(v) {
+  const u = String(v || '').trim().replace(/^webcals?:\/\//i, 'https://').slice(0, 1000);
+  return /^https?:\/\/[^\s"'<>]+$/i.test(u) ? u : '';
+}
+
+async function fetchFeed(url) {
+  const res = await fetch(url, { headers: { accept: 'text/calendar, */*' }, redirect: 'follow' });
+  if (!res.ok) { const e = new Error(`The calendar link answered with error ${res.status}.`); e.status = res.status; throw e; }
+  const text = await res.text();
+  if (text.length > 10_000_000) throw new Error('That calendar is too large to read (over 10 MB).');
+  if (!/BEGIN:VCALENDAR/.test(text)) throw new Error("That link isn't a calendar file (iCal). Check it's the calendar's subscribe / iCal link.");
+  return text;
+}
+
 // ---------- storage ----------
 export class Store extends DurableObject {
   constructor(ctx, env) {
@@ -509,6 +537,7 @@ export class Store extends DurableObject {
     if (!cols.includes('apple_href')) this.sql.exec("ALTER TABLE bookings ADD COLUMN apple_href TEXT NOT NULL DEFAULT ''");
     if (!cols.includes('apple_cal')) this.sql.exec("ALTER TABLE bookings ADD COLUMN apple_cal TEXT NOT NULL DEFAULT ''");
     this.busyCache = new Map(); // "from|to" -> { at, ranges }
+    this.feedCache = new Map(); // calendar link -> { at, text }
   }
 
   getSettings() {
@@ -605,8 +634,58 @@ export class Store extends DurableObject {
 
   // Busy times on every connected calendar, Google and Apple: [start, end, calendar name, 'google' | 'apple']
   async calendarBusy(settings, from, to, fresh = false) {
-    const [g, a] = await Promise.all([this.googleBusy(settings, from, to, fresh), this.appleBusy(settings, from, to, fresh)]);
-    return g.map((r) => [...r, 'google']).concat(a.map((r) => [...r, 'apple']));
+    const [g, a, f] = await Promise.all([this.googleBusy(settings, from, to, fresh), this.appleBusy(settings, from, to, fresh), this.feedBusy(settings, from, to, fresh)]);
+    return g.map((r) => [...r, 'google']).concat(a.map((r) => [...r, 'apple']), f.map((r) => [...r, 'feed']));
+  }
+
+  // A calendar link's file, fetched at most once a minute (or fresh for the admin)
+  async feedText(url, fresh) {
+    const hit = this.feedCache.get(url);
+    if (!fresh && hit && Date.now() - hit.at < 60e3) return hit.text;
+    try {
+      const text = await fetchFeed(url);
+      this.feedCache.set(url, { at: Date.now(), text });
+      if (this.feedCache.size > 20) this.feedCache.delete(this.feedCache.keys().next().value);
+      return text;
+    } catch (err) {
+      if (hit) return hit.text; // keep what we had if the link is briefly unreachable
+      throw err;
+    }
+  }
+
+  // Times taken up on the calendar links, like googleBusy
+  async feedBusy(settings, from, to, fresh = false) {
+    if (!settings.feeds.length) return [];
+    const fromMs = (dayNum(from) - 1) * 864e5;
+    const toMs = (dayNum(to) + 2) * 864e5;
+    const failed = [];
+    const results = await Promise.all(settings.feeds.map(async (f) => {
+      try {
+        const name = f.label || 'Calendar link';
+        return icsEvents(await this.feedText(f.url, fresh), fromMs, toMs, null).filter((e) => f.block[e.kind]).map((e) => [e.start, e.end, name]);
+      } catch (err) {
+        failed.push(`${f.label || 'Calendar link'} (${err.message})`);
+        return [];
+      }
+    }));
+    if (failed.length) this.noteCal('feed', false, `Can't read: ${failed.join(', ')}`.slice(0, 300));
+    else if (fresh) this.noteCal('feed', true, 'Last check worked.');
+    return [].concat(...results);
+  }
+
+  // For the admin's "Test link" button
+  async testFeed(url) {
+    url = feedUrl(url);
+    if (!url) return { ok: false, message: 'Paste the calendar link first (it starts with https:// or webcal://).' };
+    try {
+      const text = await fetchFeed(url);
+      this.feedCache.set(url, { at: Date.now(), text });
+      const today = dayNum(nowLA().date);
+      const n = icsEvents(text, today * 864e5, (today + 60) * 864e5, null).length;
+      return { ok: true, message: `Connected. Found ${n} events in the next 60 days.` };
+    } catch (err) {
+      return { ok: false, message: err.message };
+    }
   }
 
   // Times taken up on the connected calendars between two dates, as wall-clock minute ranges
@@ -834,7 +913,7 @@ export class Store extends DurableObject {
       }
       return { ok: true, message: `Connected to "${cal.summary}". Bookings can now be added to this calendar.` };
     } catch (err) {
-      if (err.status === 404) return { ok: false, message: `Google can't find that calendar. Check the calendar ID, and that the calendar is shared with ${sa.client_email}.` };
+      if (err.status === 404) return { ok: false, message: `Google can't find that calendar. Check the calendar ID, and that the calendar is shared with ${sa.client_email}. A calendar you only subscribe to (under "Other calendars", like EZCall) can't be shared: add its iCal link under Calendar links instead.` };
       return { ok: false, message: err.message };
     }
   }
@@ -1167,6 +1246,11 @@ async function api(request, env, url) {
     return json({ added: !!acct, appleId: acct ? acct.id : '', status: await db.calState('apple') });
   }
   if (path === '/api/admin/apple/calendars' && method === 'POST') return json(await db.appleCalendars());
+  if (path === '/api/admin/feeds' && method === 'GET') return json({ status: await db.calState('feed') });
+  if (path === '/api/admin/feeds/test' && method === 'POST') {
+    const body = await readJson(request, 3_000);
+    return json(await db.testFeed(body.url));
+  }
   if (path === '/api/admin/schedule' && method === 'GET') {
     const r = await db.schedule(url.searchParams.get('from') || '', url.searchParams.get('to') || '');
     return r ? json(r) : bad('Choose a date range of up to two months.');
